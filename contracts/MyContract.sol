@@ -31,8 +31,14 @@ contract Dai {
     }
 }
 
+Enum RepayWith {
+    DAI,
+    COLLATERAL
+}
+
 interface ICallbackRecipient {
-    function flashMintCallback(address initiator, uint256 amount, bytes memory data) returns (uint256);
+
+    function flashMintCallback(address initiator, uint256 amount, bytes memory data) returns (RepayWith, uint256);
 }
 
 contract Cdp {
@@ -82,28 +88,38 @@ contract Cdp {
 
 
         // Callback
-        uint256 repayAmount = target.flashMintCallback(msg.sender, amount, data);
+        (RepayWith collateralChoice, uint256 repayAmount) = target.flashMintCallback(msg.sender, amount, data);
 
 
-        // TODO: Check solvency
+        // Check solvency
         if(totalBorrowed > maxBorrow()) {
-            uint256 minRepay = totalBorrowed - maxBorrow();
-            // They must repay
-            // This is min repayment
-            require(repayAmount >= minRepay);
+            if(collateralChoice == RepayWith.DAI) {
+                uint256 minRepay = totalBorrowed - maxBorrow();
+                // They must repay
+                // This is min repayment
+                require(repayAmount >= minRepay);
 
-            // TODO: This may be gameable must fuzz etc.. this is a toy project bruh
-            totalBorrowed -= repayAmount;
+                // TODO: This may be gameable must fuzz etc.. this is a toy project bruh
+                totalBorrowed -= repayAmount;
 
-            // Get the repayment
-            // DAI Cannot reenter because we know impl, DO NOT ADD HOOKS OR YOU WILL GET REKT
-            DAI.burn(target, repayAmount);
+                // Get the repayment
+                // DAI Cannot reenter because we know impl, DO NOT ADD HOOKS OR YOU WILL GET REKT
+                DAI.burn(target, repayAmount);
+            } else {
+                // They repay with collateral
+
+                // NOTE: WARN
+                // This can reenter for sure, DO NOT USE IN PROD
+                deposit(repayAmount);
+
+                assert(isSolvent());
+            }
         }
     }
 
 
     // Deposit
-    function deposit(uint256 amount) external {
+    function deposit(uint256 amount) public {
         // Increase deposited
         totalDeposited += amount;
 
