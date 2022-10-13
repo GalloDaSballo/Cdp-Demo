@@ -31,6 +31,10 @@ contract Dai {
     }
 }
 
+interface ICallbackRecipient {
+    function flashMintCallback(address initiator, uint256 amount, bytes memory data) returns (uint256);
+}
+
 contract Cdp {
     using SafeERC20 for IERC20;
 
@@ -61,6 +65,40 @@ contract Cdp {
     // NOTE: Unsafe should be protected by governance (tbh should be a feed)
     function setRatio(uint256 newRatio) external {
         ratio = newRatio;
+    }
+
+    function flash(uint256 amount, ICallbackRecipient target, bytes memory data) external {
+        // No checks as we allow minting after
+
+        // Effetcs
+        uint256 newTotalBorrowed = totalBorrowed + amount;
+
+        totalBorrowed = newTotalBorrowed;
+
+        // Interactions
+        // Flash mint amount
+        // Safe because DAI is nonReentrant as we know impl
+        DAI.mint(target, amount);
+
+
+        // Callback
+        uint256 repayAmount = target.flashMintCallback(msg.sender, amount, data);
+
+
+        // TODO: Check solvency
+        if(totalBorrowed > maxBorrow()) {
+            uint256 minRepay = totalBorrowed - maxBorrow();
+            // They must repay
+            // This is min repayment
+            require(repayAmount >= minRepay);
+
+            // TODO: This may be gameable must fuzz etc.. this is a toy project bruh
+            totalBorrowed -= repayAmount;
+
+            // Get the repayment
+            // DAI Cannot reenter because we know impl, DO NOT ADD HOOKS OR YOU WILL GET REKT
+            DAI.burn(target, repayAmount);
+        }
     }
 
 
