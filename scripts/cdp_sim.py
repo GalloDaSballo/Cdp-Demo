@@ -98,7 +98,8 @@ class Ebtc:
     
     def take_actions(self, users, troves):
         ## TODO: Add User Decisions making / given the list of all trove have user do something
-        return False
+        for user in users:
+            user.take_action(self.turn, troves)
 
     def next_turn(self):
       self.time += SECONDS_PER_TURN
@@ -187,6 +188,10 @@ class User:
     def get_balance(self):
         return self.collateral
 
+    def take_action(self, turn, troves):
+        print("User" , self.name, " Taking Action")
+        print("turn ", turn)
+
 
 ## POOL For Swap
 
@@ -255,7 +260,7 @@ def main():
     system = Ebtc()
 
     # init a user with a balance of 100
-    user_1 = User(100)
+    user_1 = Borrower(100)
 
     # init a trove for this user
     trove_1 = Trove(user_1, system)
