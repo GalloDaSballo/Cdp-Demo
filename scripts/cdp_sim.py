@@ -29,69 +29,73 @@
 
   Liquidate
 """
+
 import random
+from rich.pretty import pprint
 
 from lib.names import name_list
 
 
 MAX_BPS = 10_000
-
-GLOBAL_TOTAL_DEPOSITS = 0
-GLOBAL_TOTAL_DEBT = 0
-
 INTERNAL_SECONDS_SINCE_DEPLOY = 0
-
-MAX_LTV = 15000  ## 150%
-FEE_PER_SECOND = 0  ## No fee for borrows
-ORIGINATION_FEE = 50  ## 50BPS
-
 FEED = 1000
 
 
-def GLOBAL_COLLATERAL_RATIO():
-    return GLOBAL_TOTAL_DEBT * MAX_BPS / GLOBAL_TOTAL_DEPOSITS
+class Ebtc:
+    def __init__(self):
+        self.MAX_LTV = 15000  ## 150%
+        self.FEE_PER_SECOND = 0  ## No fee for borrows
+        self.ORIGINATION_FEE = 50  ## 50BPS
 
+        self.total_deposits = 0
+        self.total_debt = 0
 
-def GLOBAL_MAX_BORROW():
-    GLOBAL_TOTAL_DEBT * FEED
+    def __repr__(self):
+        return str(self.__dict__)
 
+    def collateral_ratio(self):
+        return self.total_debt * MAX_BPS / self.total_deposits
 
-def IS_IN_EMERGENCY_MODE():
-    ## TODO:
-    return False
+    def max_borrow(self):
+        return self.total_debt * FEED
 
+    def is_in_emergency_mode(self):
+        ## TODO:
+        return False
 
-def IS_SOLVENT():
-    ## NOTE: Strictly less to avoid rounding, etc..
-    return GLOBAL_TOTAL_DEBT < GLOBAL_MAX_BORROW()
+    def is_solvent(self):
+        ## NOTE: Strictly less to avoid rounding, etc..
+        return self.total_debt < self.max_borrow()
 
 
 class Trove:
-    def __init__(self, owner):
+    def __init__(self, owner, system):
         self.deposits = 0
         self.debt = 0
         self.last_update_ts = INTERNAL_SECONDS_SINCE_DEPLOY
         self.owner = owner
+        self.system = system
+
+    def __repr__(self):
+        return str(self.__dict__)
 
     def local_collateral_ratio(self):
         return self.debt * MAX_BPS / self.deposits
 
     def deposit(self, amount):
-        global GLOBAL_TOTAL_DEPOSITS
-        GLOBAL_TOTAL_DEPOSITS += amount
+        self.system.total_deposits += amount
         self.deposits += amount
-
         self.owner.reduce_balance(self, amount)
 
     def withdraw(self, amount):
         self.deposits -= amount
-
         assert self.is_solvent()
 
     def borrow(self, amount):
         self.debt += amount
-
         assert self.is_solvent()
+        self.system.total_debt += amount
+        assert self.system.is_solvent()
 
     def repay(self, amount):
         ## TODO
@@ -128,7 +132,6 @@ class User:
         try:
             assert caller.is_trove() == True
             self.collateral += amount
-
         except:
             ## Do nothing on failure
             print("error")
@@ -177,11 +180,20 @@ class Trader(Actor):
 
 
 def main():
+    # init the system
+    system = Ebtc()
+
+    # init a user with a balance of 100
     user_1 = User(100)
 
-    print(user_1)
+    # init a trove for this user
+    trove_1 = Trove(user_1, system)
+    pprint(trove_1.__dict__)
 
-    trove_1 = Trove(user_1)
+    # make a deposit into the system
     trove_1.deposit(25)
+    pprint(trove_1.__dict__)
 
-    print(user_1)
+    # borrow against this deposit
+    trove_1.borrow(12.5)
+    pprint(trove_1.__dict__)
