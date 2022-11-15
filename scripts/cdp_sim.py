@@ -88,6 +88,10 @@ class Ebtc:
         
         ## Increase counter
         self.next_turn()
+
+        ## End of turn checks
+        if(not self.is_solvent()):
+            print("INSOLVENT")
         
     
     def sort_users(self, users):
@@ -230,28 +234,32 @@ class UniV2Pool():
   
 
 ## TODO: Add Roles ##
+"""
+    Doc about ways to play
+    https://docs.google.com/document/d/1MgqFWCPL1d1_z-8Cohq-h_9N4VEsF4zAFbxuMYq4YwA/edit
+"""
 
 ## Borrows and Holds
 class Borrower(User):
-    def step():
-        pass
+    def take_action(self, turn, troves):
+        troves[0].deposit(1)
 
 
 ## Borrow and Sells when price is higher
 class LongArbitrager(User):
-    def step():
+    def take_action(self, turn, troves):
         pass
 
 
 ## Buys when cheap and sells when higher
 class ShortArbitrager(User):
-    def step():
+   def take_action(self, turn, troves):
         pass
 
 
 ## Does both arbitrages
 class Trader(User):
-    def step():
+    def take_action(self, turn, troves):
         pass
 
 
@@ -276,12 +284,7 @@ def main():
 
     assert system.time == 0
 
-    ## Test for Feed and solvency
-    assert trove_1.is_solvent()
 
-    system.set_feed(0)
-
-    assert not trove_1.is_solvent()
 
     ## Let next time pass
     
@@ -297,4 +300,13 @@ def main():
     system.take_turn(users, troves)
     system.take_turn(users, troves)
     system.take_turn(users, troves)
+
+    ## Test for Feed and solvency
+    assert trove_1.is_solvent()
+
+    system.set_feed(0)
+
+    assert not trove_1.is_solvent()
+
+
     system.take_turn(users, troves)
