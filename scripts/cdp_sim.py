@@ -9,7 +9,7 @@
 
   ### SYSTEM CONFIG ###
 
-  Max LTV
+  Max MAX_LTV
   Fee per second (0% on LUSD)
   Origination Fee (Fixed Fee 50 BPS on LUSD)
 
@@ -42,6 +42,9 @@ SECONDS_PER_TURN = 12 ## One block in POS
 INITIAL_FEED = 1000
 SPEED_RANGE = 10
 
+## TODO: CHANGE
+MAX_LTV = 8500
+
 
 class Ebtc:
     def __init__(self):
@@ -62,7 +65,7 @@ class Ebtc:
         return self.total_debt * MAX_BPS / self.total_deposits
 
     def max_borrow(self):
-        return self.total_debt * self.feed
+        return self.total_debt * self.feed * MAX_LTV / MAX_BPS
 
     def is_in_emergency_mode(self):
         ## TODO:
@@ -157,11 +160,17 @@ class Trove:
         return True
 
     def max_borrow(self):
-        return self.deposits * self.system.feed
+        return self.deposits * self.system.feed * MAX_LTV / MAX_BPS
 
     def is_solvent(self):
         ## Strictly less to avoid rounding or w/e
         return self.debt < self.max_borrow()
+    
+    def current_ltv(self):
+        if self.deposits == 0 or self.system.feed == 0:
+            return 0
+        
+        return self.debt / (self.deposits * self.system.feed)
 
 
 class User:
@@ -241,8 +250,52 @@ class UniV2Pool():
 
 ## Borrows and Holds
 class Borrower(User):
+    def __init__(self, initial_balance_collateral):
+        self.collateral = initial_balance_collateral
+        self.name = random.choice(name_list)
+        self.speed = math.floor(random.random() * SPEED_RANGE) + 1
+        self.target_ltv = random.random() * MAX_LTV
+    
     def take_action(self, turn, troves):
-        troves[0].deposit(1)
+        ## Deposit entire balance
+        trove = self.find_trove(troves)
+
+        ## TODO: If insolvent we should do something, perhaps try to redeem as much as possible
+
+        if(trove == False):
+            print("Cannot find trove PROBLEM")
+            assert False
+        
+        ## if has collateral spend it
+        if(self.collateral > 0):
+            trove.deposit(self.collateral)
+            
+            ## NOTE: Check we did use collateral
+            assert self.collateral == 0
+    
+        
+        ltv = trove.current_ltv()
+
+        ## TODO: If below target, borrow
+        if(ltv < self.target_ltv):
+            ## Borrow until we get to ltv
+            ## TODO: math
+            trove.borrow(1)
+        
+        ## TODO: If above target, delever
+        if(ltv < self.target_ltv):
+            ## TODO: Repay
+            return 0
+        
+
+        
+    
+    def find_trove(self, troves):
+        for trove in troves:
+            if trove.owner.name == self.name:
+                return trove
+
+        return False
 
 
 ## Borrow and Sells when price is higher
