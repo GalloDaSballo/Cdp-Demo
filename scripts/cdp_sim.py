@@ -29,7 +29,7 @@
 
   Liquidate
 """
-
+import math
 import random
 from rich.pretty import pprint
 
@@ -37,8 +37,10 @@ from lib.names import name_list
 
 
 MAX_BPS = 10_000
-INTERNAL_SECONDS_SINCE_DEPLOY = 0
+SECONDS_SINCE_DEPLOY = 0
+SECONDS_PER_TURN = 12 ## One block in POS
 INITIAL_FEED = 1000
+SPEED_RANGE = 10
 
 
 class Ebtc:
@@ -50,6 +52,8 @@ class Ebtc:
         self.total_deposits = 0
         self.total_debt = 0
         self.feed = INITIAL_FEED
+        self.time = SECONDS_SINCE_DEPLOY
+        self.turn = 0
 
     def __repr__(self):
         return str(self.__dict__)
@@ -71,12 +75,43 @@ class Ebtc:
     def set_feed(self, value):
       self.feed = value
 
+    
+    def take_turn(self, users, troves):
+        print("Turn", self.turn, ": Second: ", self.time)
+
+        ## Do w/e
+        self.sort_users(users)
+
+        self.take_actions(users, troves)
+
+        ## TODO: Logging here for charting
+        
+        ## Increase counter
+        self.next_turn()
+        
+    
+    def sort_users(self, users):
+        def get_key(user):
+            ## TODO: Swing size (+- to impact randomness, simulate sorting, front-running etc..)
+            return user.speed * random.random()
+        users.sort(key=get_key)
+    
+    def take_actions(self, users, troves):
+        ## TODO: Add User Decisions making / given the list of all trove have user do something
+        return False
+
+    def next_turn(self):
+      self.time += SECONDS_PER_TURN
+      self.turn += 1
+  
+    
+
 
 class Trove:
     def __init__(self, owner, system):
         self.deposits = 0
         self.debt = 0
-        self.last_update_ts = INTERNAL_SECONDS_SINCE_DEPLOY
+        self.last_update_ts = system.time
         self.owner = owner
         self.system = system
 
@@ -128,6 +163,7 @@ class User:
     def __init__(self, initial_balance_collateral):
         self.collateral = initial_balance_collateral
         self.name = random.choice(name_list)
+        self.speed = math.floor(random.random() * SPEED_RANGE) + 1
 
     def __repr__(self):
         return str(self.__dict__)
@@ -233,9 +269,27 @@ def main():
     trove_1.borrow(12.5)
     pprint(trove_1.__dict__)
 
+    assert system.time == 0
+
     ## Test for Feed and solvency
     assert trove_1.is_solvent()
 
     system.set_feed(0)
 
     assert not trove_1.is_solvent()
+
+    ## Let next time pass
+    
+
+    ## Turn System
+    users = [user_1]
+    troves = [trove_1]
+
+    system.take_turn(users, troves)
+    assert system.time == SECONDS_PER_TURN
+
+    system.take_turn(users, troves)
+    system.take_turn(users, troves)
+    system.take_turn(users, troves)
+    system.take_turn(users, troves)
+    system.take_turn(users, troves)
