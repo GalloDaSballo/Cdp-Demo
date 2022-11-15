@@ -38,7 +38,7 @@ from lib.names import name_list
 
 MAX_BPS = 10_000
 INTERNAL_SECONDS_SINCE_DEPLOY = 0
-FEED = 1000
+INITIAL_FEED = 1000
 
 
 class Ebtc:
@@ -49,6 +49,7 @@ class Ebtc:
 
         self.total_deposits = 0
         self.total_debt = 0
+        self.feed = INITIAL_FEED
 
     def __repr__(self):
         return str(self.__dict__)
@@ -57,7 +58,7 @@ class Ebtc:
         return self.total_debt * MAX_BPS / self.total_deposits
 
     def max_borrow(self):
-        return self.total_debt * FEED
+        return self.total_debt * self.feed
 
     def is_in_emergency_mode(self):
         ## TODO:
@@ -66,6 +67,9 @@ class Ebtc:
     def is_solvent(self):
         ## NOTE: Strictly less to avoid rounding, etc..
         return self.total_debt < self.max_borrow()
+
+    def set_feed(self, value):
+      self.feed = value
 
 
 class Trove:
@@ -113,7 +117,7 @@ class Trove:
         return True
 
     def max_borrow(self):
-        return self.deposits * FEED
+        return self.deposits * self.system.feed
 
     def is_solvent(self):
         ## Strictly less to avoid rounding or w/e
@@ -151,10 +155,11 @@ class User:
 ## POOL For Swap
 
 class UniV2Pool():
-  def __init__(self, start_x, start_y):
+  def __init__(self, start_x, start_y, start_lp):
     ## NOTE: May or may not want to have a function to hardcode this
     self.reserve_x = start_x
     self.reserve_y = start_y
+    self.total_supply = start_lp
 
   def k(self):
     return self.x * self.y
@@ -173,6 +178,14 @@ class UniV2Pool():
       amountOut = numerator / denominator
 
       return amountOut
+  
+  def withdraw_lp():
+    ## TODO
+    return False
+  
+  def lp():
+    ## TODO
+    return False
   
 
 ## TODO: Add Roles ##
@@ -219,3 +232,10 @@ def main():
     # borrow against this deposit
     trove_1.borrow(12.5)
     pprint(trove_1.__dict__)
+
+    ## Test for Feed and solvency
+    assert trove_1.is_solvent()
+
+    system.set_feed(0)
+
+    assert not trove_1.is_solvent()
