@@ -45,6 +45,11 @@ SPEED_RANGE = 10
 ## TODO: CHANGE
 MAX_LTV = 8500
 
+## Randomness seed for multiple runs
+SEED = 123
+
+random.seed(SEED)
+
 
 class Move:
     def __init__(self, time, actor, label, values):
@@ -90,7 +95,7 @@ class Ebtc:
         return self.total_deposits * self.feed * MAX_LTV / MAX_BPS
 
     def is_in_emergency_mode(self):
-        ## TODO:
+        ## TODO: When are we in emergency mode?
         return False
 
     def is_solvent(self):
@@ -112,7 +117,8 @@ class Ebtc:
 
         self.take_actions(users, troves)
 
-        ## TODO: Logging here for charting
+        ## NOTE: Logging is done by each actor
+        ## NO LOGS IN SYSTEM, only in Trove / User
         
         ## Increase counter
         self.next_turn()
@@ -147,6 +153,7 @@ class Trove:
         self.last_update_ts = system.time
         self.owner = owner
         self.system = system
+        self.id = str(random.randint(1, 10**24)) ## Although PRGN odds of clash are unlikely
 
     def __repr__(self):
         return str(self.__dict__)
@@ -155,21 +162,27 @@ class Trove:
         return self.debt * MAX_BPS / self.deposits
 
     def deposit(self, amount):
+        ## Internal
         assert self.is_solvent()
-
         self.system.total_deposits += amount
         self.deposits += amount
-        self.owner.reduce_balance(self, amount)
+
+        ## Caller
+        self.owner.spend(self.id, False, amount, "Deposit")
 
         ## Logging
-        self.system.logger.add_move(self.system.time, "Trove", "Deposit", amount)
+        self.system.logger.add_move(self.system.time, "Trove" + self.id, "Deposit", amount)
 
     def withdraw(self, amount):
+        ## Internal
         self.deposits -= amount
         assert self.is_solvent()
+        
+        ## Caller
+        self.owner.receive(self.id, False, amount, "Withdraw")
 
         ## Logging
-        self.system.logger.add_move(self.system.time, "Trove", "Withdraw", amount)
+        self.system.logger.add_move(self.system.time, "Trove" + self.id, "Withdraw", amount)
 
     def borrow(self, amount):
         self.debt += amount
@@ -177,8 +190,10 @@ class Trove:
         self.system.total_debt += amount
         assert self.system.is_solvent()
 
+        self.owner.receive(self.id, True, amount, "Borrow")
+
         ## Logging
-        self.system.logger.add_move(self.system.time, "Trove", "Borrow", amount)
+        self.system.logger.add_move(self.system.time, "Trove" + self.id, "Borrow", amount)
 
 
     def repay(self, amount):
@@ -187,13 +202,21 @@ class Trove:
         self.system.total_debt -= amount
         assert self.system.is_solvent()
 
+        self.owner.spend(self.id, True, amount, "Repay")
+
         ## Logging
-        self.system.logger.add_move(self.system.time, "Trove", "Repay", amount)
+        self.system.logger.add_move(self.system.time, "Trove" + self.id, "Repay", amount)
 
     def liquidate(self, amount, caller):
         ## Only if not owner
         if caller == self.owner:
             return False
+        
+        ## TODO: Incorrect / Missing piece / Math
+        ## Spend Debt to repay
+        caller.spend(self.id, True, amount, "Liquidate")
+        ## Receive Collateral for liquidation
+        caller.receive(self.id, False, amount, "Liquidate")
 
         ## Logging
         self.system.logger.add_move(self.system.time, "Trove", "Liquidate", amount)
@@ -221,29 +244,49 @@ class Trove:
 
 
 class User:
-    def __init__(self, initial_balance_collateral):
+    def __init__(self, system, initial_balance_collateral):
+        self.system = system
         self.collateral = initial_balance_collateral
+        self.debt = 0
         self.name = random.choice(name_list)
         self.speed = math.floor(random.random() * SPEED_RANGE) + 1
 
     def __repr__(self):
         return str(self.__dict__)
+    
+    def spend(self, caller, is_debt, amount, label):
+        if is_debt:
+            self.debt -= amount
 
-    def increase_balance(self, caller, amount):
-        try:
-            assert caller.is_trove() == True
-            self.collateral += amount
-        except:
-            ## Do nothing on failure
-            print("error")
+            ## Logging
+            self.system.logger.add_move(self.system.time, "User" + self.name, "Spent Debt", amount)
 
-    def reduce_balance(self, caller, amount):
-        try:
-            assert caller.is_trove() == True
+        
+        else:
             self.collateral -= amount
-        except:
-            ## Do nothing on failure
-            print("error")
+
+            ## Logging
+            self.system.logger.add_move(self.system.time, "User" + self.name, "Spent Collateral", amount)
+        
+
+    
+    def receive(self, caller, is_debt, amount, label):
+        if is_debt:
+            self.debt += amount
+
+            ## Logging
+            self.system.logger.add_move(self.system.time, "User" + self.name, "Receive Debt", amount)
+
+        
+        else:
+            self.collateral += amount
+
+            ## Logging
+            self.system.logger.add_move(self.system.time, "User" + self.name, "Receive Collateral", amount)
+
+
+    def get_debt(self):
+        return self.debt
 
     def get_balance(self):
         return self.collateral
@@ -252,8 +295,14 @@ class User:
         print("User" , self.name, " Taking Action")
         print("turn ", turn)
 
+        self.system.logger.add_move(self.system.time, "User" + self.name, "Balance of Collateral", self.collateral)
+        self.system.logger.add_move(self.system.time, "User" + self.name, "Balance of Debt", self.debt)
+
 
 ## POOL For Swap
+
+## NOTE: For UniV3 we can use Solidly Math
+## Or alternatively just use infinite leverage at price point + .50% price impact
 
 class UniV2Pool():
   def __init__(self, start_x, start_y, start_lp):
@@ -297,7 +346,9 @@ class UniV2Pool():
 
 ## Borrows and Holds
 class Borrower(User):
-    def __init__(self, initial_balance_collateral):
+    def __init__(self, system, initial_balance_collateral):
+        self.system = system
+        self.debt = 0
         self.collateral = initial_balance_collateral
         self.name = random.choice(name_list)
         self.speed = math.floor(random.random() * SPEED_RANGE) + 1
@@ -391,7 +442,7 @@ def main():
     system = Ebtc(logger)
 
     # init a user with a balance of 100
-    user_1 = Borrower(100)
+    user_1 = Borrower(system, 100)
 
     # init a trove for this user
     trove_1 = Trove(user_1, system)
