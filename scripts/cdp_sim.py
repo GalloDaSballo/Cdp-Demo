@@ -50,6 +50,28 @@ SEED = 123
 
 random.seed(SEED)
 
+### ARCHITECURE ###
+"""
+    Ultimately we're loosely OOP, because OOP can become a mess follow these rules:
+
+    - User and Trove can Log, add logs to System only if you need to snapshot.
+        User and Trove are responsible for logging their state
+    
+    - System tracks all Users and Troves
+
+    - System Triggers -> Users, which Triggers Troves and sync up with System
+
+    - Users are the Agents, create a class that extends User (e.g. Borrower)
+    
+    - Write the logic in take_action and you will be able to extend the rest of the sytem
+
+
+    TODO:
+    - Basic invariant / unit tests to make sure system is fine
+    - Extend more Classes to Sim
+    - Decide if we want to add UniV2 / V3 Pool and simulate arbs there as well
+"""
+
 
 class Move:
     def __init__(self, time, actor, label, values):
