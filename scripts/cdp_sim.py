@@ -46,8 +46,28 @@ SPEED_RANGE = 10
 MAX_LTV = 8500
 
 
-class Ebtc:
+class Move:
+    def __init__(self, time, actor, label, values):
+        self.time = time
+        self.actor = actor
+        self.label = label
+        self.values = values ## []
+    
+    def __repr__(self):
+        return str(self.__dict__)
+
+class Logger:
     def __init__(self):
+        self.moves = []
+    
+    def add_move(self, time, actor, label, values):
+        move = Move(time, actor, label, values)
+        self.moves.append(move)
+    
+    def __repr__(self):
+        return str(self.__dict__)
+class Ebtc:
+    def __init__(self, logger):
         self.MAX_LTV = 15000  ## 150%
         self.FEE_PER_SECOND = 0  ## No fee for borrows
         self.ORIGINATION_FEE = 50  ## 50BPS
@@ -57,6 +77,8 @@ class Ebtc:
         self.feed = INITIAL_FEED
         self.time = SECONDS_SINCE_DEPLOY
         self.turn = 0
+        
+        self.logger = logger
 
     def __repr__(self):
         return str(self.__dict__)
@@ -65,7 +87,7 @@ class Ebtc:
         return self.total_debt * MAX_BPS / self.total_deposits
 
     def max_borrow(self):
-        return self.total_debt * self.feed * MAX_LTV / MAX_BPS
+        return self.total_deposits * self.feed * MAX_LTV / MAX_BPS
 
     def is_in_emergency_mode(self):
         ## TODO:
@@ -74,6 +96,9 @@ class Ebtc:
     def is_solvent(self):
         ## NOTE: Strictly less to avoid rounding, etc..
         return self.total_debt < self.max_borrow()
+
+    def get_feed(self):
+        return self.feed
 
     def set_feed(self, value):
       self.feed = value
@@ -130,13 +155,21 @@ class Trove:
         return self.debt * MAX_BPS / self.deposits
 
     def deposit(self, amount):
+        assert self.is_solvent()
+
         self.system.total_deposits += amount
         self.deposits += amount
         self.owner.reduce_balance(self, amount)
 
+        ## Logging
+        self.system.logger.add_move(self.system.time, "Trove", "Deposit", amount)
+
     def withdraw(self, amount):
         self.deposits -= amount
         assert self.is_solvent()
+
+        ## Logging
+        self.system.logger.add_move(self.system.time, "Trove", "Withdraw", amount)
 
     def borrow(self, amount):
         self.debt += amount
@@ -144,14 +177,26 @@ class Trove:
         self.system.total_debt += amount
         assert self.system.is_solvent()
 
+        ## Logging
+        self.system.logger.add_move(self.system.time, "Trove", "Borrow", amount)
+
+
     def repay(self, amount):
-        ## TODO
-        return 0
+        self.debt -= amount
+        assert self.is_solvent()
+        self.system.total_debt -= amount
+        assert self.system.is_solvent()
+
+        ## Logging
+        self.system.logger.add_move(self.system.time, "Trove", "Repay", amount)
 
     def liquidate(self, amount, caller):
         ## Only if not owner
         if caller == self.owner:
             return False
+
+        ## Logging
+        self.system.logger.add_move(self.system.time, "Trove", "Liquidate", amount)
 
         return 0
 
@@ -163,6 +208,8 @@ class Trove:
         return self.deposits * self.system.feed * MAX_LTV / MAX_BPS
 
     def is_solvent(self):
+        if self.debt == 0:
+            return True
         ## Strictly less to avoid rounding or w/e
         return self.debt < self.max_borrow()
     
@@ -261,6 +308,9 @@ class Borrower(User):
         trove = self.find_trove(troves)
 
         ## TODO: If insolvent we should do something, perhaps try to redeem as much as possible
+        if not trove.is_solvent():
+            print("Trove is insolvent, we run away with the money")
+            return ## Just revert
 
         if(trove == False):
             print("Cannot find trove PROBLEM")
@@ -274,16 +324,21 @@ class Borrower(User):
             assert self.collateral == 0
     
         
-        ltv = trove.current_ltv()
-
-        ## TODO: If below target, borrow
-        if(ltv < self.target_ltv):
-            ## Borrow until we get to ltv
-            ## TODO: math
-            trove.borrow(1)
         
-        ## TODO: If above target, delever
-        if(ltv < self.target_ltv):
+        target_borrow = trove.max_borrow() * self.target_ltv / MAX_BPS
+
+        ## If below target, borrow
+        if(trove.debt < target_borrow):
+            print("We are below target ltv, borrow")
+            ## Borrow until we get to ltv
+            ## TODO: check math math
+            delta_borrow = target_borrow - trove.debt
+
+            print("Borrow ", delta_borrow)
+            trove.borrow(delta_borrow)
+        
+        ## If above target, delever
+        if(trove.debt > target_borrow):
             ## TODO: Repay
             return 0
         
@@ -316,9 +371,24 @@ class Trader(User):
         pass
 
 
+def invariant_tests():
+    ## TODO: Please fill these in
+    """
+        If I have X troves, then total debt is sum of each trove debt
+
+        Total borrowed is sum of each trove
+
+        Max_borrow is sum of max borrowed
+
+        LTV is weighted average of each LTV = Sum LTV / $%
+
+        If I take a turn, X seconds pass
+    """
+
 def main():
     # init the system
-    system = Ebtc()
+    logger = Logger()
+    system = Ebtc(logger)
 
     # init a user with a balance of 100
     user_1 = Borrower(100)
@@ -354,12 +424,33 @@ def main():
     system.take_turn(users, troves)
     system.take_turn(users, troves)
 
+    pprint(logger)
+
     ## Test for Feed and solvency
     assert trove_1.is_solvent()
 
-    system.set_feed(0)
+    print("LTVL before drop", trove_1.current_ltv())
+
+    ## Minimum amount to be insolvent ## On max leverage
+    system.set_feed(system.get_feed() * (MAX_BPS - MAX_LTV - 1) / MAX_BPS)
+
+
+    print("LTVL after drop", trove_1.current_ltv())
+
+    ## Insane drop
+    system.set_feed(0.0001)
+
+    ## User will not invest
+    system.take_turn(users, troves)
+
+    print("Debt", trove_1.debt)
+    print("Max Debt", trove_1.max_borrow())
+    
+
+    ## Because one trove let's verify consistency
+    assert system.total_debt == trove_1.debt
+    print("system.max_borrow()", system.max_borrow())
+    print("trove_1.max_borrow()", trove_1.max_borrow())
+    assert system.max_borrow() == trove_1.max_borrow()
 
     assert not trove_1.is_solvent()
-
-
-    system.take_turn(users, troves)
