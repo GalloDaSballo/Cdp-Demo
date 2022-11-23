@@ -93,7 +93,7 @@ def main():
     is_solvent = calculate_is_solvent(system_debt, system_collateral, system_price, MAX_LTV)
     if not is_solvent:
       print("We are insolvent, RIP")
-      break ## End, no point in looping as it's unprofitable to save the system, we have bad debt
+      # break ## End, no point in looping as it's unprofitable to save the system, we have bad debt
 
     ## Check for Degenerate behavior (Minting more)
     if (random() * MAX_BPS > RISK_PERCENT):
@@ -169,5 +169,5 @@ def calculate_max_debt(collateral, price, max_ltv):
   return collateral * price * max_ltv / MAX_BPS
 
 def calculate_is_solvent(debt, collateral, price, max_ltv):
-  ## Strictly less but no strong opinion on it
-  return collateral * price * max_ltv / MAX_BPS < debt
+  ## Strictly greater but no strong opinion on it
+  return calculate_max_debt(collateral, price, max_ltv) > debt
