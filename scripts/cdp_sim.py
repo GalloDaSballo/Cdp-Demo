@@ -63,7 +63,7 @@ random.seed(SEED)
 
     - Users are the Agents, create a class that extends User (e.g. Borrower)
     
-    - Write the logic in take_action and you will be able to extend the rest of the sytem
+    - Write the logic in take_action and you will be able to extend the rest of the system
 
 
     TODO:
@@ -527,3 +527,5 @@ def main():
     assert system.max_borrow() == trove_1.max_borrow()
 
     assert not trove_1.is_solvent()
+
+    pprint(logger)
