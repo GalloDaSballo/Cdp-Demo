@@ -32,7 +32,6 @@
 import math
 import random
 from rich.pretty import pprint
-
 from lib.names import name_list
 
 

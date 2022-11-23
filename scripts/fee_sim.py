@@ -16,6 +16,11 @@
   - Redemption Fee
 """
 from random import random
+import pandas as pd
+import matplotlib.pyplot as plt
+import csv  
+from datetime import datetime
+
 
 MAX_BPS = 10_000
 
@@ -35,9 +40,146 @@ MAX_STEPS = 1_000
 ## 1k eth
 MAX_INITIAL_COLLAT = 1_000
 
+class CsvEntry():
+  def __init__(
+    self,
+    time,
+    system_collateral, 
+    system_price, 
+    target_LTV, 
+    target_debt, 
+    system_debt, 
+    liquidator_collateral_costs, 
+    liquidator_profit,
+    swap_collateral_fees,
+    swap_stable_fees,
+    insolvent_debt,
+    insolvent_collateral,
+    current_cr,
+    current_insolvent_cr
+  ):
+    self.time = time
+    self.system_collateral = system_collateral
+    self.system_price = system_price
+    self.target_LTV = target_LTV
+    self.target_debt = target_debt
+    self.system_debt = system_debt
+    self.liquidator_collateral_costs = liquidator_collateral_costs
+    self.liquidator_profit = liquidator_profit
+    self.swap_collateral_fees = swap_collateral_fees
+    self.swap_stable_fees = swap_stable_fees
+    self.insolvent_debt = insolvent_debt
+    self.insolvent_collateral = insolvent_collateral
+    self.current_cr = current_cr
+    self.current_insolvent_cr = current_insolvent_cr
+  
+  def __repr__(self):
+    return str(self.__dict__)
+  
+  def to_entry(self):
+    return [
+      self.time,
+      self.system_collateral, 
+      self.system_price, 
+      self.target_LTV, 
+      self.target_debt, 
+      self.system_debt, 
+      self.liquidator_collateral_costs, 
+      self.liquidator_profit,
+      self.swap_collateral_fees,
+      self.swap_stable_fees,
+      self.insolvent_debt,
+      self.insolvent_collateral,
+      self.current_cr,
+      self.current_insolvent_cr
+    ]
+
+class Logger:
+    def __init__(self):
+        self.entries = []
+        self.headers = [
+          "time",
+          "system_collateral", 
+          "system_price", 
+          "target_LTV", 
+          "target_debt", 
+          "system_debt", 
+          "liquidator_collateral_costs", 
+          "liquidator_profit",
+          "swap_collateral_fees",
+          "swap_stable_fees",
+          "insolvent_debt",
+          "insolvent_collateral",
+          "current_cr",
+          "current_insolvent_cr"
+        ]
+    
+    def add_move(
+      self, 
+       time,
+      system_collateral, 
+      system_price, 
+      target_LTV, 
+      target_debt, 
+      system_debt, 
+      liquidator_collateral_costs, 
+      liquidator_profit,
+      swap_collateral_fees,
+      swap_stable_fees,
+      insolvent_debt,
+      insolvent_collateral,
+      current_cr,
+      current_insolvent_cr
+    ):
+        ## Add entry
+        move = CsvEntry(
+          time,
+          system_collateral, 
+          system_price, 
+          target_LTV, 
+          target_debt, 
+          system_debt, 
+          liquidator_collateral_costs, 
+          liquidator_profit,
+          swap_collateral_fees,
+          swap_stable_fees,
+          insolvent_debt,
+          insolvent_collateral,
+          current_cr,
+          current_insolvent_cr
+        )
+        self.entries.append(move)
+    
+    def __repr__(self):
+        return str(self.__dict__)
+    
+    def to_csv(self):
+
+      ## Create a file with current time as name
+      now = datetime.now()
+
+      current_time = now.strftime("%H:%M:%S")
+
+      file_name = current_time + " fee_sim.csv"
+
+      with open(file_name, 'w', encoding='UTF8') as f:
+        writer = csv.writer(f)
+
+        # write the header
+        writer.writerow(self.headers)
+
+        # write the data
+        for entry in self.entries:
+          writer.writerow(entry.to_entry())
+
+        
+
+
 def main():
   ## Maximum Collateral Ratio
   MAX_LTV = random() * MAX_BPS
+
+  LOGGER = Logger()
 
   ## How risk the trove will get, MAX_BPS = Full send, 0 = We do not even mint
   RISK_PERCENT = random() * MAX_BPS
@@ -80,13 +222,16 @@ def main():
   insolvent_debt = 0
   insolvent_collateral = 0
 
+  current_cr = calculate_collateral_ratio(system_collateral, system_price, system_debt)
+  current_insolvent_cr = calculate_collateral_ratio(insolvent_collateral, system_price, insolvent_debt)
 
 
 
-  step = 0
+
+  turn = 0
   ## Main Loop
-  while(step < MAX_STEPS):
-    print("Step", step)
+  while(turn < MAX_STEPS):
+    print("Turn", turn)
     print("Collateral Ratio", calculate_collateral_ratio(system_collateral, system_price, system_debt))
 
     ## Check for solvency
@@ -154,14 +299,37 @@ def main():
 
     
 
+    ## TODO: Log all the values
+    LOGGER.add_move(
+      turn,
+      system_collateral, 
+      system_price, 
+      target_LTV, 
+      target_debt, 
+      system_debt, 
+      liquidator_collateral_costs, 
+      liquidator_profit,
+      swap_collateral_fees,
+      swap_stable_fees,
+      insolvent_debt,
+      insolvent_collateral,
+      current_cr,
+      current_insolvent_cr
+    )
 
-    step += 1
 
+
+    turn += 1
+
+
+  LOGGER.to_csv()
 
 def calculate_swap_fee(amount_in, fee_bps):
   return amount_in * fee_bps / MAX_BPS
 
 def calculate_collateral_ratio(collateral, price, debt):
+  if(collateral == 0):
+    return 0
   return debt / collateral * price
   
   
