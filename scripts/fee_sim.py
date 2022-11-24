@@ -306,6 +306,10 @@ def main():
         ## Cost of swapping from Collateral to stable
         second_swap_fees = calculate_swap_fee(liquidation_premium, AMM_FEE)
 
+        ## Update AMM fees
+        swap_collateral_fees += cost_to_liquidate
+        swap_stable_fees += second_swap_fees
+
         ## NOTE
         liquidator_fees_paid += cost_to_liquidate + second_swap_fees
         liquidator_profit += liquidation_premium - second_swap_fees
