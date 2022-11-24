@@ -332,14 +332,8 @@ def main():
 
     ## TODO: Separate taking leverage / being insolvent
     ## From price up and down for more dynamic sim
-
-    ## Check for Degenerate behavior (Minting more)
     if (random() * MAX_BPS > RISK_PERCENT):
-      print("Simulate a random insolvency")
-
-      drawdown_value = random() * MAX_SWING
-
-      print("Drawdown of", drawdown_value)
+      print("Simulate Degenerate Borrowing")
 
       ## Insolvency basic, figure out random debt
       insolvent_collateral = random() * system_collateral
@@ -353,6 +347,14 @@ def main():
       ## Add debt and collateral to system
       system_collateral += insolvent_collateral
       system_debt += insolvent_debt
+
+    ## Check for Degenerate behavior (Minting more)
+    if (random() * 100 % 2 == 0):
+      print("Price goes down")
+
+      drawdown_value = random() * MAX_SWING
+
+      print("Drawdown of", drawdown_value)
 
       ## Bring Price Down
       system_price = system_price * (MAX_BPS - drawdown_value) / MAX_BPS
