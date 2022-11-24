@@ -39,7 +39,7 @@ MAX_AMM_FEE = 300 ## 3%, avg AMM is 30 BPS
 INITIA_PRICE = 1200 ## TODO: ADD Dynamic Price
 
 ## 1k steps before we end
-MAX_STEPS = 100
+MAX_STEPS = 1000
 
 ## 1k eth
 MAX_INITIAL_COLLAT = 1_000
@@ -346,8 +346,8 @@ def main():
         liquidation_premium = insolvent_collateral * system_price - cost_to_liquidate - insolvent_debt
 
         ## Update System
-        system_collateral += insolvent_collateral
-        system_debt += insolvent_debt
+        system_collateral -= insolvent_collateral
+        system_debt -= insolvent_debt
 
         ## Update Fees
 
