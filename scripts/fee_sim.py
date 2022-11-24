@@ -63,8 +63,8 @@ class CsvEntry():
     liquidator_profit,
     swap_collateral_fees,
     swap_stable_fees,
-    insolvent_debt,
-    insolvent_collateral,
+    at_risk_debt,
+    at_risk_collateral,
     current_cr,
     current_insolvent_cr
   ):
@@ -78,8 +78,8 @@ class CsvEntry():
     self.liquidator_profit = liquidator_profit
     self.swap_collateral_fees = swap_collateral_fees
     self.swap_stable_fees = swap_stable_fees
-    self.insolvent_debt = insolvent_debt
-    self.insolvent_collateral = insolvent_collateral
+    self.at_risk_debt = at_risk_debt
+    self.at_risk_collateral = at_risk_collateral
     self.current_cr = current_cr
     self.current_insolvent_cr = current_insolvent_cr
 
@@ -98,8 +98,8 @@ class CsvEntry():
       self.liquidator_profit,
       self.swap_collateral_fees,
       self.swap_stable_fees,
-      self.insolvent_debt,
-      self.insolvent_collateral,
+      self.at_risk_debt,
+      self.at_risk_collateral,
       self.current_cr,
       self.current_insolvent_cr
     ]
@@ -118,8 +118,8 @@ class Logger:
           "liquidator_profit",
           "swap_collateral_fees",
           "swap_stable_fees",
-          "insolvent_debt",
-          "insolvent_collateral",
+          "at_risk_debt",
+          "at_risk_collateral",
           "current_cr",
           "current_insolvent_cr"
         ]
@@ -137,8 +137,8 @@ class Logger:
       liquidator_profit,
       swap_collateral_fees,
       swap_stable_fees,
-      insolvent_debt,
-      insolvent_collateral,
+      at_risk_debt,
+      at_risk_collateral,
       current_cr,
       current_insolvent_cr
     ):
@@ -154,8 +154,8 @@ class Logger:
           liquidator_profit,
           swap_collateral_fees,
           swap_stable_fees,
-          insolvent_debt,
-          insolvent_collateral,
+          at_risk_debt,
+          at_risk_collateral,
           current_cr,
           current_insolvent_cr
         )
@@ -196,7 +196,7 @@ class Logger:
       fig, axes = plt.subplots(nrows=df.columns.size - len(constants))
       df.drop(constants, axis='columns').plot(subplots=True, ax=axes)
       fig.set_size_inches(10, 100)
-      title = f'target debt: {df["target_debt"].max()}\ntarget LTV: {df["target_LTV"].max()}'
+      title = f'target debt: {df["target_debt"].max()}\ntarget LTV: {df["target_LTV"].max()}\n'
       fig.suptitle(title, fontsize=14, fontweight='bold')
       fig.savefig(filename, dpi=100)
 
@@ -255,11 +255,11 @@ def main():
   swap_stable_fees = 0
 
   ## NOTE: Simulate one insolvent trove as it's effectively the same
-  insolvent_debt = 0
-  insolvent_collateral = 0
+  at_risk_debt = 0
+  at_risk_collateral = 0
 
   current_cr = calculate_collateral_ratio(system_collateral, system_price, system_debt)
-  current_insolvent_cr = calculate_collateral_ratio(insolvent_collateral, system_price, insolvent_debt)
+  current_insolvent_cr = calculate_collateral_ratio(at_risk_collateral, system_price, at_risk_debt)
 
 
   turn = 0
@@ -274,20 +274,20 @@ def main():
 
     ## Check insolvency
     ## We are insolvent in this case
-    if (calculate_max_debt(insolvent_collateral, system_price, MAX_LTV) < insolvent_debt):
+    if (calculate_max_debt(at_risk_collateral, system_price, MAX_LTV) < at_risk_debt):
       print("Debt is insolvent")
 
-      if(insolvent_collateral * system_price > insolvent_debt):
+      if(at_risk_collateral * system_price > at_risk_debt):
         print("Economically worth saving")
 
         ## TODO: Add check for proper liquidation threshold
 
         ## Liquidate
         ## For now we do full liquidation
-        to_liquidate = insolvent_debt
+        to_liquidate = at_risk_debt
 
         ## Cost of swapping from Stable to collateral
-        cost_to_liquidate = calculate_swap_fee(insolvent_debt, AMM_FEE)
+        cost_to_liquidate = calculate_swap_fee(at_risk_debt, AMM_FEE)
 
         ## NOTE: Technically incorrect but works for now
 
@@ -295,11 +295,11 @@ def main():
         ## NOTE: Technically missing liquidation fee
         ## TODO: Add liquidation fee
         ## NOTE: If 100% liquidation, technically the fee is the remainder of the position - LTV
-        liquidation_premium = insolvent_collateral * system_price - cost_to_liquidate - insolvent_debt
+        liquidation_premium = at_risk_collateral * system_price - cost_to_liquidate - at_risk_debt
 
         ## Update System
-        system_collateral -= insolvent_collateral
-        system_debt -= insolvent_debt
+        system_collateral -= at_risk_collateral
+        system_debt -= at_risk_debt
 
         ## Update Fees
 
@@ -315,8 +315,8 @@ def main():
         liquidator_profit += liquidation_premium - second_swap_fees
 
         ## Update Insolvency vars
-        insolvent_collateral = 0
-        insolvent_debt = 0
+        at_risk_collateral = 0
+        at_risk_debt = 0
 
         print("New CR After Liquidation", calculate_collateral_ratio(system_collateral, system_price, system_debt))
       else:
@@ -336,17 +336,17 @@ def main():
       print("Simulate Degenerate Borrowing")
 
       ## Insolvency basic, figure out random debt
-      insolvent_collateral = random() * system_collateral
+      at_risk_collateral = random() * system_collateral
 
-      max_insolvent_debt = calculate_max_debt(insolvent_collateral, system_price, MAX_LTV)
+      max_at_risk_debt = calculate_max_debt(at_risk_collateral, system_price, MAX_LTV)
 
       ## From it figure out max collateral
       ## Levered to the max
-      insolvent_debt = max_insolvent_debt
+      at_risk_debt = max_at_risk_debt
 
       ## Add debt and collateral to system
-      system_collateral += insolvent_collateral
-      system_debt += insolvent_debt
+      system_collateral += at_risk_collateral
+      system_debt += at_risk_debt
 
     ## Check for Degenerate behavior (Minting more)
     if (random() * 100 % 2 == 0):
@@ -360,7 +360,7 @@ def main():
       system_price = system_price * (MAX_BPS - drawdown_value) / MAX_BPS
       print("New Price", system_price)
 
-      print("Drawdown Collateral Ratio of Underwater Debt", calculate_collateral_ratio(insolvent_collateral, system_price, insolvent_debt))
+      print("Drawdown Collateral Ratio of Underwater Debt", calculate_collateral_ratio(at_risk_collateral, system_price, at_risk_debt))
       print("Drawdown Collateral Ratio of System Including Underwater Debt", calculate_collateral_ratio(system_collateral, system_price, system_debt))
 
     else:
@@ -374,7 +374,7 @@ def main():
       system_price = system_price * (MAX_BPS + pamp_value) / MAX_BPS
       print("New Price", system_price)
 
-      print("Pamp Collateral Ratio of Underwater Debt", calculate_collateral_ratio(insolvent_collateral, system_price, insolvent_debt))
+      print("Pamp Collateral Ratio of Underwater Debt", calculate_collateral_ratio(at_risk_collateral, system_price, at_risk_debt))
       print("Pamp Collateral Ratio of System Including Underwater Debt", calculate_collateral_ratio(system_collateral, system_price, system_debt))
 
 
@@ -383,7 +383,7 @@ def main():
 
     ## TODO: Figure out if we want it here or somewhere else
     current_cr = calculate_collateral_ratio(system_collateral, system_price, system_debt)
-    current_insolvent_cr = calculate_collateral_ratio(insolvent_collateral, system_price, insolvent_debt)
+    current_insolvent_cr = calculate_collateral_ratio(at_risk_collateral, system_price, at_risk_debt)
 
 
 
@@ -399,8 +399,8 @@ def main():
       liquidator_profit,
       swap_collateral_fees,
       swap_stable_fees,
-      insolvent_debt,
-      insolvent_collateral,
+      at_risk_debt,
+      at_risk_collateral,
       current_cr,
       current_insolvent_cr
     )
