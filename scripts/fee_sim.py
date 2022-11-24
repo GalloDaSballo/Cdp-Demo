@@ -28,7 +28,7 @@ MAX_BPS = 10_000
 
 ## How much can the price change between turns?
 ## 5%
-MAX_SWING = 500
+MAX_SWING = 5_000
 
 MAX_MINT_FEE = 200 ## 2%
 MAX_LIQ_FEE = 1_000 ## 10%
@@ -367,6 +367,11 @@ def main():
         print("Risky debt is insolvent, but not worth saving, skip")
     else:
       print("Risky debt is solvent, skip")
+
+    
+    ## TODO: Figure out if we want it here or somewhere else
+    current_cr = calculate_collateral_ratio(system_collateral, system_price, system_debt)
+    current_insolvent_cr = calculate_collateral_ratio(insolvent_collateral, system_price, insolvent_debt)
 
 
 
