@@ -32,8 +32,9 @@ import matplotlib.pyplot as plt
 MAX_BPS = 10_000
 
 ## How much can the price change between turns?
-## 5%
-MAX_SWING = 500
+## 1%
+## 5% breaks with 10k steps
+MAX_SWING = 100
 
 MAX_MINT_FEE = 200 ## 2%
 MAX_LIQ_FEE = 1_000 ## 10%
@@ -44,7 +45,7 @@ MAX_AMM_FEE = 300 ## 3%, avg AMM is 30 BPS
 INITIA_PRICE = 1200 ## TODO: ADD Dynamic Price
 
 ## 1k steps before we end
-MAX_STEPS = 1000
+MAX_STEPS = 10000
 
 ## 1k eth
 MAX_INITIAL_COLLAT = 1_000
@@ -278,7 +279,6 @@ def main():
 
 
     ## Check insolvency
-    ## We are insolvent in this case
     if (calculate_max_debt(at_risk_collateral, system_price, MAX_LTV) < at_risk_debt):
       print("Debt is insolvent")
 
@@ -335,8 +335,7 @@ def main():
       print("We are insolvent, RIP")
       # break ## End, no point in looping as it's unprofitable to save the system, we have bad debt
 
-    ## TODO: Separate taking leverage / being insolvent
-    ## From price up and down for more dynamic sim
+    ## If random check passes we create more debt at the maximum LTV possible to simulate risk taking behaviour
     if (random() * MAX_BPS > RISK_PERCENT):
       print("Simulate Degenerate Borrowing")
 
@@ -353,8 +352,8 @@ def main():
       system_collateral += at_risk_collateral
       system_debt += at_risk_debt
 
-    ## Check for Degenerate behavior (Minting more)
-    if (random() * 100 % 2 == 0):
+    ## 50% Chance of price going up or down
+    if (int(random() * 100) % 2 == 0):
       print("Price goes down")
 
       drawdown_value = random() * MAX_SWING
