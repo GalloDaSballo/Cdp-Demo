@@ -1,0 +1,5 @@
+dotmap
+eth-brownie
+pytest
+pandas
+matplotlib

@@ -15,11 +15,12 @@
   ## NOT SURE:
   - Redemption Fee
 """
+import csv
+import os
 from random import random
+
 import pandas as pd
 import matplotlib.pyplot as plt
-import csv  
-from datetime import datetime
 
 
 MAX_BPS = 10_000
@@ -44,12 +45,12 @@ class CsvEntry():
   def __init__(
     self,
     time,
-    system_collateral, 
-    system_price, 
-    target_LTV, 
-    target_debt, 
-    system_debt, 
-    liquidator_collateral_costs, 
+    system_collateral,
+    system_price,
+    target_LTV,
+    target_debt,
+    system_debt,
+    liquidator_collateral_costs,
     liquidator_profit,
     swap_collateral_fees,
     swap_stable_fees,
@@ -72,19 +73,19 @@ class CsvEntry():
     self.insolvent_collateral = insolvent_collateral
     self.current_cr = current_cr
     self.current_insolvent_cr = current_insolvent_cr
-  
+
   def __repr__(self):
     return str(self.__dict__)
-  
+
   def to_entry(self):
     return [
       self.time,
-      self.system_collateral, 
-      self.system_price, 
-      self.target_LTV, 
-      self.target_debt, 
-      self.system_debt, 
-      self.liquidator_collateral_costs, 
+      self.system_collateral,
+      self.system_price,
+      self.target_LTV,
+      self.target_debt,
+      self.system_debt,
+      self.liquidator_collateral_costs,
       self.liquidator_profit,
       self.swap_collateral_fees,
       self.swap_stable_fees,
@@ -99,12 +100,12 @@ class Logger:
         self.entries = []
         self.headers = [
           "time",
-          "system_collateral", 
-          "system_price", 
-          "target_LTV", 
-          "target_debt", 
-          "system_debt", 
-          "liquidator_collateral_costs", 
+          "system_collateral",
+          "system_price",
+          "target_LTV",
+          "target_debt",
+          "system_debt",
+          "liquidator_collateral_costs",
           "liquidator_profit",
           "swap_collateral_fees",
           "swap_stable_fees",
@@ -113,16 +114,17 @@ class Logger:
           "current_cr",
           "current_insolvent_cr"
         ]
-    
+        os.makedirs('logs/fee_sims/', exist_ok=True)
+
     def add_move(
-      self, 
+      self,
        time,
-      system_collateral, 
-      system_price, 
-      target_LTV, 
-      target_debt, 
-      system_debt, 
-      liquidator_collateral_costs, 
+      system_collateral,
+      system_price,
+      target_LTV,
+      target_debt,
+      system_debt,
+      liquidator_collateral_costs,
       liquidator_profit,
       swap_collateral_fees,
       swap_stable_fees,
@@ -134,12 +136,12 @@ class Logger:
         ## Add entry
         move = CsvEntry(
           time,
-          system_collateral, 
-          system_price, 
-          target_LTV, 
-          target_debt, 
-          system_debt, 
-          liquidator_collateral_costs, 
+          system_collateral,
+          system_price,
+          target_LTV,
+          target_debt,
+          system_debt,
+          liquidator_collateral_costs,
           liquidator_profit,
           swap_collateral_fees,
           swap_stable_fees,
@@ -149,20 +151,16 @@ class Logger:
           current_insolvent_cr
         )
         self.entries.append(move)
-    
+
     def __repr__(self):
         return str(self.__dict__)
-    
+
     def to_csv(self):
 
       ## Create a file with current time as name
-      now = datetime.now()
+      filename = f'logs/fee_sims/{pd.Timestamp.now()}.csv'
 
-      current_time = now.strftime("%H:%M:%S")
-
-      file_name = current_time + " fee_sim.csv"
-
-      with open(file_name, 'w', encoding='UTF8') as f:
+      with open(filename, 'w', encoding='UTF8') as f:
         writer = csv.writer(f)
 
         # write the header
@@ -172,7 +170,21 @@ class Logger:
         for entry in self.entries:
           writer.writerow(entry.to_entry())
 
-        
+    def plot_to_png(self, filename=f'logs/fee_sims/{pd.Timestamp.now()}.png'):
+      # convert CsvEntry objects to a single DataFrame
+      df = (pd.DataFrame(self.entries)[0]
+        .astype(str)
+        .map(eval)
+        .apply(pd.Series)
+        .set_index('time')
+      )
+      print(df.info())
+
+      # generate subplot for every column; save to single png
+      fig, axes = plt.subplots(nrows=df.columns.size)
+      df.plot(subplots=True, ax=axes)
+      fig.set_size_inches(10, 100)
+      fig.savefig(filename, dpi=100)
 
 
 def main():
@@ -191,11 +203,11 @@ def main():
 
   EXTRA_LEVERAGE = random() * MAX_EXTRA_LEVERAGE
 
-  
+
   system_collateral = MAX_INITIAL_COLLAT * random()
   system_price = INITIA_PRICE
 
-  
+
 
   print("Initial Setup")
   print("Price", system_price)
@@ -214,7 +226,7 @@ def main():
 
   ## Fees paid in collateral to get debt
   swap_collateral_fees = 0
-  
+
   ## Fees paid in collateral to get stable-coin to cash out (ARB)
   swap_stable_fees = 0
 
@@ -297,17 +309,17 @@ def main():
     else:
       print("It's too underwater, let the trove sink")
 
-    
+
 
     ## TODO: Log all the values
     LOGGER.add_move(
       turn,
-      system_collateral, 
-      system_price, 
-      target_LTV, 
-      target_debt, 
-      system_debt, 
-      liquidator_collateral_costs, 
+      system_collateral,
+      system_price,
+      target_LTV,
+      target_debt,
+      system_debt,
+      liquidator_collateral_costs,
       liquidator_profit,
       swap_collateral_fees,
       swap_stable_fees,
@@ -323,6 +335,7 @@ def main():
 
 
   LOGGER.to_csv()
+  LOGGER.plot_to_png()
 
 def calculate_swap_fee(amount_in, fee_bps):
   return amount_in * fee_bps / MAX_BPS
@@ -331,8 +344,8 @@ def calculate_collateral_ratio(collateral, price, debt):
   if(collateral == 0):
     return 0
   return debt / collateral * price
-  
-  
+
+
 def calculate_max_debt(collateral, price, max_ltv):
   return collateral * price * max_ltv / MAX_BPS
 

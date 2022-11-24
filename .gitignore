@@ -7,4 +7,8 @@ reports/
 
 node_modules/
 
-*.csv
+# logging output
+logs/
+
+# macos system files
+.DS_Store
