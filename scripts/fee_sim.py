@@ -28,7 +28,7 @@ MAX_BPS = 10_000
 
 ## How much can the price change between turns?
 ## 5%
-MAX_SWING = 5_000
+MAX_SWING = 500
 
 MAX_MINT_FEE = 200 ## 2%
 MAX_LIQ_FEE = 1_000 ## 10%
@@ -188,6 +188,8 @@ class Logger:
         .set_index('time')
       )
       print(df.info())
+      df.style.set_caption("Hello World")
+
 
       # generate subplot for every column; save to single png
       fig, axes = plt.subplots(nrows=df.columns.size)
