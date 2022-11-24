@@ -36,21 +36,23 @@ MAX_EXTRA_LEVERAGE = 1_000 ## 10% extra borrowing when already at target LTV if 
 INITIA_PRICE = 1200 ## TODO: ADD Dynamic Price
 
 ## 1k steps before we end
-MAX_STEPS = 1_000
+MAX_STEPS = 100
 
 ## 1k eth
 MAX_INITIAL_COLLAT = 1_000
+
+TO_CSV = True
 
 class CsvEntry():
   def __init__(
     self,
     time,
-    system_collateral,
-    system_price,
-    target_LTV,
-    target_debt,
-    system_debt,
-    liquidator_collateral_costs,
+    system_collateral, 
+    system_price, 
+    target_LTV, 
+    target_debt, 
+    system_debt, 
+    liquidator_fees_paid, 
     liquidator_profit,
     swap_collateral_fees,
     swap_stable_fees,
@@ -65,7 +67,7 @@ class CsvEntry():
     self.target_LTV = target_LTV
     self.target_debt = target_debt
     self.system_debt = system_debt
-    self.liquidator_collateral_costs = liquidator_collateral_costs
+    self.liquidator_fees_paid = liquidator_fees_paid
     self.liquidator_profit = liquidator_profit
     self.swap_collateral_fees = swap_collateral_fees
     self.swap_stable_fees = swap_stable_fees
@@ -80,12 +82,12 @@ class CsvEntry():
   def to_entry(self):
     return [
       self.time,
-      self.system_collateral,
-      self.system_price,
-      self.target_LTV,
-      self.target_debt,
-      self.system_debt,
-      self.liquidator_collateral_costs,
+      self.system_collateral, 
+      self.system_price, 
+      self.target_LTV, 
+      self.target_debt, 
+      self.system_debt, 
+      self.liquidator_fees_paid, 
       self.liquidator_profit,
       self.swap_collateral_fees,
       self.swap_stable_fees,
@@ -100,12 +102,12 @@ class Logger:
         self.entries = []
         self.headers = [
           "time",
-          "system_collateral",
-          "system_price",
-          "target_LTV",
-          "target_debt",
-          "system_debt",
-          "liquidator_collateral_costs",
+          "system_collateral", 
+          "system_price", 
+          "target_LTV", 
+          "target_debt", 
+          "system_debt", 
+          "liquidator_fees_paid", 
           "liquidator_profit",
           "swap_collateral_fees",
           "swap_stable_fees",
@@ -119,12 +121,12 @@ class Logger:
     def add_move(
       self,
        time,
-      system_collateral,
-      system_price,
-      target_LTV,
-      target_debt,
-      system_debt,
-      liquidator_collateral_costs,
+      system_collateral, 
+      system_price, 
+      target_LTV, 
+      target_debt, 
+      system_debt, 
+      liquidator_fees_paid, 
       liquidator_profit,
       swap_collateral_fees,
       swap_stable_fees,
@@ -136,12 +138,12 @@ class Logger:
         ## Add entry
         move = CsvEntry(
           time,
-          system_collateral,
-          system_price,
-          target_LTV,
-          target_debt,
-          system_debt,
-          liquidator_collateral_costs,
+          system_collateral, 
+          system_price, 
+          target_LTV, 
+          target_debt, 
+          system_debt, 
+          liquidator_fees_paid, 
           liquidator_profit,
           swap_collateral_fees,
           swap_stable_fees,
@@ -220,8 +222,20 @@ def main():
   print("Initial LTV", target_LTV)
   system_debt = target_debt
 
+  ## We assume it's a portion of the debt, but we don't need to add
+  system_minting_fee = system_debt * MINTING_FEE / MAX_BPS
+
+  ## NOTE: TODO or remove per comment below
+  system_liquidation_fee = 0
+  
+  ## NOTE: Arguably we could ignore as this is more of a caller incentive, meaningful only for small trades
+  ## NOTE: May be worthwhile having a separate sim exclusively about the liquidation fee vs size of CDP
+  liquidator_liquidation_fee_receive = 0
+
+  ## TODO: Liquidation fee / Caller incentive
+
   ## NOTE: Assume infinite ETH, can fine tune later
-  liquidator_collateral_costs = 0
+  liquidator_fees_paid = 0
   liquidator_profit = 0
 
   ## Fees paid in collateral to get debt
@@ -236,8 +250,6 @@ def main():
 
   current_cr = calculate_collateral_ratio(system_collateral, system_price, system_debt)
   current_insolvent_cr = calculate_collateral_ratio(insolvent_collateral, system_price, insolvent_debt)
-
-
 
 
   turn = 0
@@ -299,13 +311,48 @@ def main():
       system_price = system_price * (MAX_BPS + pamp_value) / MAX_BPS
       print("New Price", system_price)
 
-      print("Drawdown Collateral Ratio of Underwater Debt", calculate_collateral_ratio(insolvent_collateral, system_price, insolvent_debt))
-      print("Drawdown Collateral Ratio of System Including Underwater Debt", calculate_collateral_ratio(system_collateral, system_price, system_debt))
+      print("Pamp Collateral Ratio of Underwater Debt", calculate_collateral_ratio(insolvent_collateral, system_price, insolvent_debt))
+      print("Pamp Collateral Ratio of System Including Underwater Debt", calculate_collateral_ratio(system_collateral, system_price, system_debt))
 
 
 
     if(insolvent_collateral * system_price > insolvent_debt):
       print("We can save this")
+
+      ## TODO: Add check for proper liquidation threshold
+
+      ## Liquidate
+      ## For now we do full liquidation
+      to_liquidate = insolvent_debt
+
+      ## Cost of swapping from Stable to collateral
+      cost_to_liquidate = calculate_swap_fee(insolvent_debt, AMM_FEE)
+
+      ## NOTE: Technically incorrect but works for now
+
+      ## Premium = total collateral - fees - debt
+      ## NOTE: Technically missing liquidation fee
+      ## TODO: Add liquidation fee
+      liquidation_premium = insolvent_collateral * system_price - cost_to_liquidate - insolvent_debt
+
+      ## Update System
+      system_collateral += insolvent_collateral
+      system_debt += insolvent_debt
+
+      ## Update Fees
+
+      ## Cost of swapping from Collateral to stable
+      second_swap_fees = calculate_swap_fee(liquidation_premium, AMM_FEE)
+
+      ## NOTE
+      liquidator_fees_paid += cost_to_liquidate + second_swap_fees
+      liquidator_profit += liquidation_premium - second_swap_fees
+
+      ## Update Insolvency vars
+      insolvent_collateral = 0
+      insolvent_debt = 0
+
+      print("New CR After Liquidation", calculate_collateral_ratio(system_collateral, system_price, system_debt))
     else:
       print("It's too underwater, let the trove sink")
 
@@ -314,12 +361,12 @@ def main():
     ## TODO: Log all the values
     LOGGER.add_move(
       turn,
-      system_collateral,
-      system_price,
-      target_LTV,
-      target_debt,
-      system_debt,
-      liquidator_collateral_costs,
+      system_collateral, 
+      system_price, 
+      target_LTV, 
+      target_debt, 
+      system_debt, 
+      liquidator_fees_paid, 
       liquidator_profit,
       swap_collateral_fees,
       swap_stable_fees,
@@ -333,9 +380,9 @@ def main():
 
     turn += 1
 
-
-  LOGGER.to_csv()
-  LOGGER.plot_to_png()
+  if (TO_CSV):
+    LOGGER.to_csv()
+    LOGGER.plot_to_png()
 
 def calculate_swap_fee(amount_in, fee_bps):
   return amount_in * fee_bps / MAX_BPS
