@@ -34,7 +34,7 @@ MAX_BPS = 10_000
 ## How much can the price change between turns?
 ## 1%
 ## 5% breaks with 10k steps
-MAX_SWING = 100
+MAX_SWING = 500
 
 MAX_MINT_FEE = 200 ## 2%
 MAX_LIQ_FEE = 1_000 ## 10%
@@ -45,7 +45,7 @@ MAX_AMM_FEE = 300 ## 3%, avg AMM is 30 BPS
 INITIA_PRICE = 1200 ## TODO: ADD Dynamic Price
 
 ## 1k steps before we end
-MAX_STEPS = 10000
+MAX_STEPS = 1000
 
 ## 1k eth
 MAX_INITIAL_COLLAT = 1_000
@@ -72,7 +72,9 @@ class CsvEntry():
     at_risk_debt,
     at_risk_collateral,
     current_cr,
-    current_insolvent_cr
+    current_at_risk_cr,
+    underwater_debt,
+    underwater_collateral
   ):
     self.time = time
     self.system_collateral = system_collateral
@@ -87,7 +89,9 @@ class CsvEntry():
     self.at_risk_debt = at_risk_debt
     self.at_risk_collateral = at_risk_collateral
     self.current_cr = current_cr
-    self.current_insolvent_cr = current_insolvent_cr
+    self.current_at_risk_cr = current_at_risk_cr
+    self.underwater_debt = underwater_debt
+    self.underwater_collateral = underwater_collateral
 
   def __repr__(self):
     return str(self.__dict__)
@@ -107,7 +111,7 @@ class CsvEntry():
       self.at_risk_debt,
       self.at_risk_collateral,
       self.current_cr,
-      self.current_insolvent_cr
+      self.current_at_risk_cr
     ]
 
 class Logger:
@@ -127,13 +131,13 @@ class Logger:
           "at_risk_debt",
           "at_risk_collateral",
           "current_cr",
-          "current_insolvent_cr"
+          "current_at_risk_cr"
         ]
         os.makedirs('logs/fee_sims/', exist_ok=True)
 
     def add_move(
       self,
-       time,
+      time,
       system_collateral,
       system_price,
       target_LTV,
@@ -146,7 +150,9 @@ class Logger:
       at_risk_debt,
       at_risk_collateral,
       current_cr,
-      current_insolvent_cr
+      current_at_risk_cr,
+      underwater_debt,
+      underwater_collateral
     ):
         ## Add entry
         move = CsvEntry(
@@ -163,7 +169,9 @@ class Logger:
           at_risk_debt,
           at_risk_collateral,
           current_cr,
-          current_insolvent_cr
+          current_at_risk_cr,
+          underwater_debt,
+          underwater_collateral
         )
         self.entries.append(move)
 
@@ -265,8 +273,10 @@ def main():
   at_risk_collateral = 0
 
   current_cr = calculate_collateral_ratio(system_collateral, system_price, system_debt)
-  current_insolvent_cr = calculate_collateral_ratio(at_risk_collateral, system_price, at_risk_debt)
+  current_at_risk_cr = calculate_collateral_ratio(at_risk_collateral, system_price, at_risk_debt)
 
+  underwater_debt = 0
+  underwater_collateral = 0
 
   turn = 0
   ## Main Loop
@@ -323,9 +333,17 @@ def main():
         at_risk_collateral = 0
         at_risk_debt = 0
 
+        ## If we liquidate, by definition no amount is underwater anymore
+        underwater_debt = 0
+        underwater_collateral = 0
+        
         print("New CR After Liquidation", calculate_collateral_ratio(system_collateral, system_price, system_debt))
       else:
         print("Risky debt is insolvent, but not worth saving, skip")
+
+        ## Compute underwater values for the risky part of the sym
+        underwater_debt = at_risk_debt - calculate_max_debt(at_risk_collateral, system_price, MAX_LTV)
+        underwater_collateral = at_risk_collateral
     else:
       print("Risky debt is solvent, skip")
 
@@ -333,7 +351,11 @@ def main():
     is_solvent = calculate_is_solvent(system_debt, system_collateral, system_price, MAX_LTV)
     if not is_solvent:
       print("We are insolvent, RIP")
-      # break ## End, no point in looping as it's unprofitable to save the system, we have bad debt
+
+      underwater_debt = system_debt - calculate_max_debt(system_collateral, system_price, MAX_LTV)
+      
+      ## NOTE: All collateral is underwater as liquidations can be used to take all assets with current math
+      underwater_collateral = system_collateral
 
     ## If random check passes we create more debt at the maximum LTV possible to simulate risk taking behaviour
     if (random() * MAX_BPS > RISK_PERCENT):
@@ -387,7 +409,7 @@ def main():
 
     ## TODO: Figure out if we want it here or somewhere else
     current_cr = calculate_collateral_ratio(system_collateral, system_price, system_debt)
-    current_insolvent_cr = calculate_collateral_ratio(at_risk_collateral, system_price, at_risk_debt)
+    current_at_risk_cr = calculate_collateral_ratio(at_risk_collateral, system_price, at_risk_debt)
 
 
 
@@ -406,7 +428,9 @@ def main():
       at_risk_debt,
       at_risk_collateral,
       current_cr,
-      current_insolvent_cr
+      current_at_risk_cr,
+      underwater_debt,
+      underwater_collateral
     )
 
 
