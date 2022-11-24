@@ -261,7 +261,12 @@ def main():
   ## Main Loop
   while(turn < MAX_STEPS):
     print("Turn", turn)
+
+    print("Total Debt", system_debt)
+    print("Total Collateral", system_collateral)
     print("Collateral Ratio", calculate_collateral_ratio(system_collateral, system_price, system_debt))
+
+
 
     ## Check for solvency
     is_solvent = calculate_is_solvent(system_debt, system_collateral, system_price, MAX_LTV)
