@@ -14,6 +14,11 @@
 
   ## NOT SURE:
   - Redemption Fee
+
+  TODO:
+  Proper Chart Titles
+  Track of decision making from Liquidator
+  Track Time Insolvent / Amount insolvent
 """
 import csv
 import os
