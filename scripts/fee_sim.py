@@ -272,6 +272,53 @@ def main():
     print("Collateral Ratio", calculate_collateral_ratio(system_collateral, system_price, system_debt))
 
 
+    ## Check insolvency
+    ## We are insolvent in this case
+    if (calculate_max_debt(insolvent_collateral, system_price, MAX_LTV) < insolvent_debt):
+      print("Debt is insolvent")
+
+      if(insolvent_collateral * system_price > insolvent_debt):
+        print("Economically worth saving")
+
+        ## TODO: Add check for proper liquidation threshold
+
+        ## Liquidate
+        ## For now we do full liquidation
+        to_liquidate = insolvent_debt
+
+        ## Cost of swapping from Stable to collateral
+        cost_to_liquidate = calculate_swap_fee(insolvent_debt, AMM_FEE)
+
+        ## NOTE: Technically incorrect but works for now
+
+        ## Premium = total collateral - fees - debt
+        ## NOTE: Technically missing liquidation fee
+        ## TODO: Add liquidation fee
+        ## NOTE: If 100% liquidation, technically the fee is the remainder of the position - LTV
+        liquidation_premium = insolvent_collateral * system_price - cost_to_liquidate - insolvent_debt
+
+        ## Update System
+        system_collateral -= insolvent_collateral
+        system_debt -= insolvent_debt
+
+        ## Update Fees
+
+        ## Cost of swapping from Collateral to stable
+        second_swap_fees = calculate_swap_fee(liquidation_premium, AMM_FEE)
+
+        ## NOTE
+        liquidator_fees_paid += cost_to_liquidate + second_swap_fees
+        liquidator_profit += liquidation_premium - second_swap_fees
+
+        ## Update Insolvency vars
+        insolvent_collateral = 0
+        insolvent_debt = 0
+
+        print("New CR After Liquidation", calculate_collateral_ratio(system_collateral, system_price, system_debt))
+      else:
+        print("Risky debt is insolvent, but not worth saving, skip")
+    else:
+      print("Risky debt is solvent, skip")
 
     ## Check for solvency
     is_solvent = calculate_is_solvent(system_debt, system_collateral, system_price, MAX_LTV)
@@ -325,53 +372,7 @@ def main():
       print("Pamp Collateral Ratio of System Including Underwater Debt", calculate_collateral_ratio(system_collateral, system_price, system_debt))
 
 
-    ## Check insolvency
-    ## We are insolvent in this case
-    if (calculate_max_debt(insolvent_collateral, system_price, MAX_LTV) < insolvent_debt):
-      print("Debt is insolvent")
-
-      if(insolvent_collateral * system_price > insolvent_debt):
-        print("Economically worth saving")
-
-        ## TODO: Add check for proper liquidation threshold
-
-        ## Liquidate
-        ## For now we do full liquidation
-        to_liquidate = insolvent_debt
-
-        ## Cost of swapping from Stable to collateral
-        cost_to_liquidate = calculate_swap_fee(insolvent_debt, AMM_FEE)
-
-        ## NOTE: Technically incorrect but works for now
-
-        ## Premium = total collateral - fees - debt
-        ## NOTE: Technically missing liquidation fee
-        ## TODO: Add liquidation fee
-        ## NOTE: If 100% liquidation, technically the fee is the remainder of the position - LTV
-        liquidation_premium = insolvent_collateral * system_price - cost_to_liquidate - insolvent_debt
-
-        ## Update System
-        system_collateral -= insolvent_collateral
-        system_debt -= insolvent_debt
-
-        ## Update Fees
-
-        ## Cost of swapping from Collateral to stable
-        second_swap_fees = calculate_swap_fee(liquidation_premium, AMM_FEE)
-
-        ## NOTE
-        liquidator_fees_paid += cost_to_liquidate + second_swap_fees
-        liquidator_profit += liquidation_premium - second_swap_fees
-
-        ## Update Insolvency vars
-        insolvent_collateral = 0
-        insolvent_debt = 0
-
-        print("New CR After Liquidation", calculate_collateral_ratio(system_collateral, system_price, system_debt))
-      else:
-        print("Risky debt is insolvent, but not worth saving, skip")
-    else:
-      print("Risky debt is solvent, skip")
+    
 
 
     ## TODO: Figure out if we want it here or somewhere else
