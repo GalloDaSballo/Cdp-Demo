@@ -54,12 +54,12 @@ class CsvEntry():
   def __init__(
     self,
     time,
-    system_collateral, 
-    system_price, 
-    target_LTV, 
-    target_debt, 
-    system_debt, 
-    liquidator_fees_paid, 
+    system_collateral,
+    system_price,
+    target_LTV,
+    target_debt,
+    system_debt,
+    liquidator_fees_paid,
     liquidator_profit,
     swap_collateral_fees,
     swap_stable_fees,
@@ -89,12 +89,12 @@ class CsvEntry():
   def to_entry(self):
     return [
       self.time,
-      self.system_collateral, 
-      self.system_price, 
-      self.target_LTV, 
-      self.target_debt, 
-      self.system_debt, 
-      self.liquidator_fees_paid, 
+      self.system_collateral,
+      self.system_price,
+      self.target_LTV,
+      self.target_debt,
+      self.system_debt,
+      self.liquidator_fees_paid,
       self.liquidator_profit,
       self.swap_collateral_fees,
       self.swap_stable_fees,
@@ -109,12 +109,12 @@ class Logger:
         self.entries = []
         self.headers = [
           "time",
-          "system_collateral", 
-          "system_price", 
-          "target_LTV", 
-          "target_debt", 
-          "system_debt", 
-          "liquidator_fees_paid", 
+          "system_collateral",
+          "system_price",
+          "target_LTV",
+          "target_debt",
+          "system_debt",
+          "liquidator_fees_paid",
           "liquidator_profit",
           "swap_collateral_fees",
           "swap_stable_fees",
@@ -128,12 +128,12 @@ class Logger:
     def add_move(
       self,
        time,
-      system_collateral, 
-      system_price, 
-      target_LTV, 
-      target_debt, 
-      system_debt, 
-      liquidator_fees_paid, 
+      system_collateral,
+      system_price,
+      target_LTV,
+      target_debt,
+      system_debt,
+      liquidator_fees_paid,
       liquidator_profit,
       swap_collateral_fees,
       swap_stable_fees,
@@ -145,12 +145,12 @@ class Logger:
         ## Add entry
         move = CsvEntry(
           time,
-          system_collateral, 
-          system_price, 
-          target_LTV, 
-          target_debt, 
-          system_debt, 
-          liquidator_fees_paid, 
+          system_collateral,
+          system_price,
+          target_LTV,
+          target_debt,
+          system_debt,
+          liquidator_fees_paid,
           liquidator_profit,
           swap_collateral_fees,
           swap_stable_fees,
@@ -190,9 +190,12 @@ class Logger:
       print(df.info())
 
       # generate subplot for every column; save to single png
-      fig, axes = plt.subplots(nrows=df.columns.size)
-      df.plot(subplots=True, ax=axes)
+      constants = ['target_debt', 'target_LTV']
+      fig, axes = plt.subplots(nrows=df.columns.size - len(constants))
+      df.drop(constants, axis='columns').plot(subplots=True, ax=axes)
       fig.set_size_inches(10, 100)
+      title = f'target debt: {df["target_debt"].max()}\ntarget LTV: {df["target_LTV"].max()}'
+      fig.suptitle(title, fontsize=14, fontweight='bold')
       fig.savefig(filename, dpi=100)
 
 
@@ -232,7 +235,7 @@ def main():
 
   ## NOTE: TODO or remove per comment below
   system_liquidation_fee = 0
-  
+
   ## NOTE: Arguably we could ignore as this is more of a caller incentive, meaningful only for small trades
   ## NOTE: May be worthwhile having a separate sim exclusively about the liquidation fee vs size of CDP
   liquidator_liquidation_fee_receive = 0
@@ -273,7 +276,7 @@ def main():
     if not is_solvent:
       print("We are insolvent, RIP")
       # break ## End, no point in looping as it's unprofitable to save the system, we have bad debt
-    
+
     ## TODO: Separate taking leverage / being insolvent
     ## From price up and down for more dynamic sim
 
@@ -368,7 +371,7 @@ def main():
     else:
       print("Risky debt is solvent, skip")
 
-    
+
     ## TODO: Figure out if we want it here or somewhere else
     current_cr = calculate_collateral_ratio(system_collateral, system_price, system_debt)
     current_insolvent_cr = calculate_collateral_ratio(insolvent_collateral, system_price, insolvent_debt)
@@ -378,12 +381,12 @@ def main():
     ## TODO: Log all the values
     LOGGER.add_move(
       turn,
-      system_collateral, 
-      system_price, 
-      target_LTV, 
-      target_debt, 
-      system_debt, 
-      liquidator_fees_paid, 
+      system_collateral,
+      system_price,
+      target_LTV,
+      target_debt,
+      system_debt,
+      liquidator_fees_paid,
       liquidator_profit,
       swap_collateral_fees,
       swap_stable_fees,
@@ -397,7 +400,7 @@ def main():
     ## NOTE: Indentation, we're still in the while
     if (ROLEPLAY):
       time.sleep(3)
-    
+
     ## Next turn
     turn += 1
 
