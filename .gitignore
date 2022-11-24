@@ -12,3 +12,7 @@ logs/
 
 # macos system files
 .DS_Store
+
+# Hide outputs from sim
+*.csv
+*.png
