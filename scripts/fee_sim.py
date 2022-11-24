@@ -18,6 +18,7 @@
 import csv
 import os
 from random import random
+import time
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -30,8 +31,6 @@ MAX_LIQ_FEE = 1_000 ## 10%
 
 MAX_AMM_FEE = 300 ## 3%, avg AMM is 30 BPS
 
-MAX_EXTRA_LEVERAGE = 1_000 ## 10% extra borrowing when already at target LTV if randomness check passes
-
 ## 1 eth, 1200 usd
 INITIA_PRICE = 1200 ## TODO: ADD Dynamic Price
 
@@ -41,7 +40,11 @@ MAX_STEPS = 100
 ## 1k eth
 MAX_INITIAL_COLLAT = 1_000
 
+## Output to CSV and PNG
 TO_CSV = True
+
+## Slow down the Terminal so you can read it
+ROLEPLAY = True
 
 class CsvEntry():
   def __init__(
@@ -203,8 +206,6 @@ def main():
 
   AMM_FEE = MAX_AMM_FEE
 
-  EXTRA_LEVERAGE = random() * MAX_EXTRA_LEVERAGE
-
 
   system_collateral = MAX_INITIAL_COLLAT * random()
   system_price = INITIA_PRICE
@@ -263,6 +264,9 @@ def main():
     if not is_solvent:
       print("We are insolvent, RIP")
       # break ## End, no point in looping as it's unprofitable to save the system, we have bad debt
+    
+    ## TODO: Separate taking leverage / being insolvent
+    ## From price up and down for more dynamic sim
 
     ## Check for Degenerate behavior (Minting more)
     if (random() * MAX_BPS > RISK_PERCENT):
@@ -292,14 +296,6 @@ def main():
       print("Drawdown Collateral Ratio of Underwater Debt", calculate_collateral_ratio(insolvent_collateral, system_price, insolvent_debt))
       print("Drawdown Collateral Ratio of System Including Underwater Debt", calculate_collateral_ratio(system_collateral, system_price, system_debt))
 
-      ## TODO: Liquidation is profitable if AMM Quote is profitable
-      ## And LTV is close enough
-
-
-      ## TODO: Sim buying AMT of CDP from Pool
-      ## Then use CDP to Liquidate (burn CDP, get Collateral)
-      ## Then Sell Collateral in Pool again for another Stable
-      ## Which shows the arb
     else:
       print("No Bad News Today, simulate price going up")
 
@@ -315,46 +311,53 @@ def main():
       print("Pamp Collateral Ratio of System Including Underwater Debt", calculate_collateral_ratio(system_collateral, system_price, system_debt))
 
 
+    ## Check insolvency
+    ## We are insolvent in this case
+    if (calculate_max_debt(insolvent_collateral, system_price, MAX_LTV) < insolvent_debt):
+      print("Debt is insolvent")
 
-    if(insolvent_collateral * system_price > insolvent_debt):
-      print("We can save this")
+      if(insolvent_collateral * system_price > insolvent_debt):
+        print("Economically worth saving")
 
-      ## TODO: Add check for proper liquidation threshold
+        ## TODO: Add check for proper liquidation threshold
 
-      ## Liquidate
-      ## For now we do full liquidation
-      to_liquidate = insolvent_debt
+        ## Liquidate
+        ## For now we do full liquidation
+        to_liquidate = insolvent_debt
 
-      ## Cost of swapping from Stable to collateral
-      cost_to_liquidate = calculate_swap_fee(insolvent_debt, AMM_FEE)
+        ## Cost of swapping from Stable to collateral
+        cost_to_liquidate = calculate_swap_fee(insolvent_debt, AMM_FEE)
 
-      ## NOTE: Technically incorrect but works for now
+        ## NOTE: Technically incorrect but works for now
 
-      ## Premium = total collateral - fees - debt
-      ## NOTE: Technically missing liquidation fee
-      ## TODO: Add liquidation fee
-      liquidation_premium = insolvent_collateral * system_price - cost_to_liquidate - insolvent_debt
+        ## Premium = total collateral - fees - debt
+        ## NOTE: Technically missing liquidation fee
+        ## TODO: Add liquidation fee
+        ## NOTE: If 100% liquidation, technically the fee is the remainder of the position - LTV
+        liquidation_premium = insolvent_collateral * system_price - cost_to_liquidate - insolvent_debt
 
-      ## Update System
-      system_collateral += insolvent_collateral
-      system_debt += insolvent_debt
+        ## Update System
+        system_collateral += insolvent_collateral
+        system_debt += insolvent_debt
 
-      ## Update Fees
+        ## Update Fees
 
-      ## Cost of swapping from Collateral to stable
-      second_swap_fees = calculate_swap_fee(liquidation_premium, AMM_FEE)
+        ## Cost of swapping from Collateral to stable
+        second_swap_fees = calculate_swap_fee(liquidation_premium, AMM_FEE)
 
-      ## NOTE
-      liquidator_fees_paid += cost_to_liquidate + second_swap_fees
-      liquidator_profit += liquidation_premium - second_swap_fees
+        ## NOTE
+        liquidator_fees_paid += cost_to_liquidate + second_swap_fees
+        liquidator_profit += liquidation_premium - second_swap_fees
 
-      ## Update Insolvency vars
-      insolvent_collateral = 0
-      insolvent_debt = 0
+        ## Update Insolvency vars
+        insolvent_collateral = 0
+        insolvent_debt = 0
 
-      print("New CR After Liquidation", calculate_collateral_ratio(system_collateral, system_price, system_debt))
+        print("New CR After Liquidation", calculate_collateral_ratio(system_collateral, system_price, system_debt))
+      else:
+        print("Risky debt is insolvent, but not worth saving, skip")
     else:
-      print("It's too underwater, let the trove sink")
+      print("Risky debt is solvent, skip")
 
 
 
@@ -377,9 +380,14 @@ def main():
     )
 
 
-
+    ## NOTE: Indentation, we're still in the while
+    if (ROLEPLAY):
+      time.sleep(3)
+    
+    ## Next turn
     turn += 1
 
+  ## NOTE: No longer in while, save to file
   if (TO_CSV):
     LOGGER.to_csv()
     LOGGER.plot_to_png()
@@ -390,7 +398,7 @@ def calculate_swap_fee(amount_in, fee_bps):
 def calculate_collateral_ratio(collateral, price, debt):
   if(collateral == 0):
     return 0
-  return debt / collateral * price
+  return debt / (collateral * price)
 
 
 def calculate_max_debt(collateral, price, max_ltv):
