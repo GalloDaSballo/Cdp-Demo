@@ -26,6 +26,10 @@ import matplotlib.pyplot as plt
 
 MAX_BPS = 10_000
 
+## How much can the price change between turns?
+## 5%
+MAX_SWING = 500
+
 MAX_MINT_FEE = 200 ## 2%
 MAX_LIQ_FEE = 1_000 ## 10%
 
@@ -44,7 +48,7 @@ MAX_INITIAL_COLLAT = 1_000
 TO_CSV = True
 
 ## Slow down the Terminal so you can read it
-ROLEPLAY = True
+ROLEPLAY = False
 
 class CsvEntry():
   def __init__(
@@ -272,7 +276,7 @@ def main():
     if (random() * MAX_BPS > RISK_PERCENT):
       print("Simulate a random insolvency")
 
-      drawdown_value = random() * MAX_BPS
+      drawdown_value = random() * MAX_SWING
 
       print("Drawdown of", drawdown_value)
 
@@ -299,7 +303,7 @@ def main():
     else:
       print("No Bad News Today, simulate price going up")
 
-      pamp_value = random() * MAX_BPS
+      pamp_value = random() * MAX_SWING
 
       print("Pamp of", pamp_value)
       ## Bring Price Up
