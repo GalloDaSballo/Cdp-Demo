@@ -46,7 +46,8 @@ MAX_BPS = 10_000
 # How much can the price change between turns?
 # 1%
 # 5% breaks with 10k steps
-MAX_SWING = 500
+## TODO: Figure out if we can use percentage, for now just use flat increment / decrement
+MAX_SWING = 10
 
 MAX_MINT_FEE = 200  # 2%x
 MAX_LIQ_FEE = 1_000  # 10%
@@ -62,11 +63,11 @@ MAX_STEPS = 10_000
 # 1k eth
 MAX_INITIAL_COLLAT = 1_000
 
-# Output to CSV and PNG
-TO_CSV = True
-
 #  Slow down the Terminal so you can read it
 ROLEPLAY = False
+
+# Output to CSV and PNG
+TO_CSV = not ROLEPLAY
 
 ## TODO: Create settings for Multiple Loop for Brute Force Sim
 SETTING_LTV_MIN = 0
@@ -355,6 +356,8 @@ def main():
                 print("Economically worth saving")
 
                 #  TODO: Add check for proper liquidation threshold
+                print("New CR Before Liquidation",
+                    calculate_collateral_ratio(system_collateral, system_price, system_debt))
 
 
                 #  Cost of swapping from Stable to collateral
@@ -406,62 +409,63 @@ def main():
                 underwater_collateral = at_risk_collateral
         else:
             print("Risky debt is solvent, skip")
+        
+        global_is_insolvent = 0
 
-        # Check for solvency
-        is_solvent = calculate_is_solvent(system_debt, system_collateral, system_price, MAX_LTV)
-        if not is_solvent:
-            print("We are insolvent, RIP")
-
-            global_is_insolvent = 1
-
-            underwater_debt = system_debt - calculate_max_debt(system_collateral, system_price,
-                                                               MAX_LTV)
-
-            # NOTE: All collateral is underwater as liquidations
-            # can be used to take all assets with current math
-            underwater_collateral = system_collateral
-        else:
-            global_is_insolvent = 0
-
+        # Check for solvency &
         ## NOTE: Liquidate entire system if at risk
+        ## NOTE: Not sure
         if (calculate_max_debt(system_collateral, system_price, MAX_LTV) < system_debt):
-            print("Global Liquidation, MUST INVESTIGATE")
-            cost_to_liquidate = calculate_swap_fee(system_debt, AMM_FEE)
+            if (system_collateral * system_price > system_debt):
+                print("Economically worth saving")
+                print("Global Liquidation, MUST INVESTIGATE")
+                cost_to_liquidate = calculate_swap_fee(system_debt, AMM_FEE)
 
-            # NOTE: Technically incorrect but works for now
+                ## TODO: Figure out if profitable to purge
 
-            #  Premium = total collateral - fees - debt
-            # NOTE: Technically missing liquidation fee
-            # TODO: Add liquidation fee
-            # NOTE: If 100% liquidation, technically the fee is the remainder of the position - LTV
-            liquidation_premium = system_collateral * system_price - cost_to_liquidate - system_debt
+                # NOTE: Technically incorrect but works for now
 
-            #  Update System
-            system_collateral -= system_collateral
-            system_debt -= system_debt
+                #  Premium = total collateral - fees - debt
+                # NOTE: Technically missing liquidation fee
+                # TODO: Add liquidation fee
+                # NOTE: If 100% liquidation, technically the fee is the remainder of the position - LTV
+                liquidation_premium = system_collateral * system_price - cost_to_liquidate - system_debt
 
-            #  Update Fees
+                #  Update System
+                system_collateral -= system_collateral
+                system_debt -= system_debt
 
-            # Cost of swapping from Collateral to stable
-            second_swap_fees = calculate_swap_fee(liquidation_premium, AMM_FEE)
+                #  Update Fees
 
-            #  Update AMM fees
-            swap_collateral_fees += cost_to_liquidate
-            swap_stable_fees += second_swap_fees
+                # Cost of swapping from Collateral to stable
+                second_swap_fees = calculate_swap_fee(liquidation_premium, AMM_FEE)
 
-            # NOTE
-            liquidator_fees_paid += cost_to_liquidate + second_swap_fees
-            liquidator_profit += liquidation_premium - second_swap_fees
+                #  Update AMM fees
+                swap_collateral_fees += cost_to_liquidate
+                swap_stable_fees += second_swap_fees
 
-            #  Update Insolvency vars
-            at_risk_collateral = 0
-            at_risk_debt = 0
+                # NOTE
+                liquidator_fees_paid += cost_to_liquidate + second_swap_fees
+                liquidator_profit += liquidation_premium - second_swap_fees
 
-            # If we liquidate, by definition no amount is underwater anymore
-            underwater_debt = 0
-            underwater_collateral = 0
+                #  Update Insolvency vars
+                at_risk_collateral = 0
+                at_risk_debt = 0
 
-            global_purges_count += 1
+                # If we liquidate, by definition no amount is underwater anymore
+                underwater_debt = 0
+                underwater_collateral = 0
+
+                global_purges_count += 1
+            else:
+                global_is_insolvent = 1
+
+                underwater_debt = system_debt - calculate_max_debt(system_collateral, system_price,
+                                                               MAX_LTV)
+                # NOTE: All collateral is underwater as liquidations
+                # can be used to take all assets with current math
+                underwater_collateral = system_collateral
+
             
 
         # If random check passes we create more debt at the
@@ -482,16 +486,16 @@ def main():
             system_collateral += at_risk_collateral
             system_debt += at_risk_debt
 
-        # 50% Chance of price going up or down
+        # 50% Chance of price going down and 90% up
         if int(random() * 100) % 2 == 0:
             print("Price goes down")
 
             drawdown_value = random() * MAX_SWING
 
-            print("Drawdown of (percent)", (MAX_BPS - drawdown_value) / MAX_BPS)
+            print("Drawdown of (absolute)", drawdown_value)
 
             # Bring Price Down
-            system_price = system_price * (MAX_BPS - drawdown_value) / MAX_BPS
+            system_price = system_price - drawdown_value
             print("New Price", system_price)
 
             print("Drawdown Collateral Ratio of At Risk Debt",
@@ -504,10 +508,10 @@ def main():
 
             pamp_value = random() * MAX_SWING
 
-            print("Pamp of (percent)",(MAX_BPS + pamp_value) / MAX_BPS)
+            print("Pamp of (absolute)", pamp_value)
             # Bring Price Up
             # NOTE: We do this as it may make some liquidations profitable
-            system_price = system_price * (MAX_BPS + pamp_value) / MAX_BPS
+            system_price = system_price + pamp_value
             print("New Price", system_price)
 
             print("Pamp Collateral Ratio of At Risk Debt",
@@ -546,7 +550,7 @@ def main():
 
         # NOTE: Indentation, we're still in the while
         if ROLEPLAY:
-            time.sleep(3)
+            time.sleep(2)
 
         # Next turn
         turn += 1
