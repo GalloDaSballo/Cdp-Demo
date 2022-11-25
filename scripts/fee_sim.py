@@ -22,9 +22,12 @@
   - Redemption Fee
 
   TODO:
-  Proper Chart Titles
+  Proper Chart Titles -> Basically done
+
   Track of decision making from Liquidator
   Track Time Insolvent / Amount insolvent
+
+
 """
 import csv
 import os
@@ -54,21 +57,22 @@ MAX_AMM_FEE = 300  # 3%, avg AMM is 30 BPS
 INITIAL_PRICE = 1200 ## TODO: ADD Dynamic Price
 
 ## 10k steps before we end
-MAX_STEPS = 10_000
+MAX_STEPS = 100
 
 # 1k eth
 MAX_INITIAL_COLLAT = 1_000
 
 # Output to CSV and PNG
-TO_CSV = True
+TO_CSV = False
 
 #  Slow down the Terminal so you can read it
-ROLEPLAY = False
+ROLEPLAY = True
 
 ## TODO: Create settings for Multiple Loop for Brute Force Sim
 SETTING_LTV_MIN = 0
 
-SETTING_LTV_MAX = 0
+## 120 CR = 1/120 * 100 = 8_333 BPS
+SETTING_LTV_MAX = 8_333
 
 ## END Goal -> 100 runs of 10_000 steps for each sim
 ## Each sim goes from XYZ to ZYX with a TODO: Step size
@@ -91,7 +95,9 @@ class CsvEntry():
             current_cr,
             current_at_risk_cr,
             underwater_debt,
-            underwater_collateral
+            underwater_collateral,
+            global_liquidation_count,
+            global_is_insolvent
     ):
         self.time = time
         self.system_collateral = system_collateral
@@ -109,6 +115,8 @@ class CsvEntry():
         self.current_at_risk_cr = current_at_risk_cr
         self.underwater_debt = underwater_debt
         self.underwater_collateral = underwater_collateral
+        self.global_liquidation_count = global_liquidation_count
+        self.global_is_insolvent = global_is_insolvent
 
     def __repr__(self):
         return str(self.__dict__)
@@ -128,7 +136,9 @@ class CsvEntry():
             self.at_risk_debt,
             self.at_risk_collateral,
             self.current_cr,
-            self.current_at_risk_cr
+            self.current_at_risk_cr,
+            self.global_liquidation_count,
+            self.global_is_insolvent
         ]
 
 
@@ -149,7 +159,9 @@ class Logger:
             "at_risk_debt",
             "at_risk_collateral",
             "current_cr",
-            "current_at_risk_cr"
+            "current_at_risk_cr",
+            "global_liquidation_count",
+            "global_is_insolvent"
         ]
         os.makedirs('logs/fee_sims/', exist_ok=True)
 
@@ -170,7 +182,9 @@ class Logger:
             current_cr,
             current_at_risk_cr,
             underwater_debt,
-            underwater_collateral
+            underwater_collateral,
+            global_liquidation_count,
+            global_is_insolvent
     ):
         # Add entry
         move = CsvEntry(
@@ -189,7 +203,9 @@ class Logger:
             current_cr,
             current_at_risk_cr,
             underwater_debt,
-            underwater_collateral
+            underwater_collateral,
+            global_liquidation_count,
+            global_is_insolvent
         )
         self.entries.append(move)
 
@@ -226,24 +242,24 @@ class Logger:
         fig, axes = plt.subplots()
         df.drop(constants, axis='columns').plot(
             subplots=True, ax=axes,
-            title=[
-                'Title1', 'Title2', 'Title3',
-                'Title1', 'Title2', 'Title3',
-                'Title1', 'Title2', 'Title3',
-                'Title1', 'Title2', 'Title3',
-                'Title1',
-            ]
+            # title=[
+            #     'Title1', 'Title2', 'Title3',
+            #     'Title1', 'Title2', 'Title3',
+            #     'Title1', 'Title2', 'Title3',
+            #     'Title1', 'Title2', 'Title3',
+            #     'Title1', 'Liquidations', "Is_Solvent (Bool)"
+            # ]
         )
         # fig.set_size_inches(10, 100)
-        # title = f'target debt: {df["target_debt"].max()}\ntarget LTV: {df["target_LTV"].max()}\n'
+        title = f'target debt: {df["target_debt"].max()}\ntarget LTV: {df["target_LTV"].max()}\n'
         fig.tight_layout()
-        # fig.suptitle(title, fontsize=14, fontweight='bold')
+        fig.suptitle(title, fontsize=14, fontweight='bold')
         fig.savefig(filename, dpi=200)
 
 
 def main():
     # Maximum Collateral Ratio
-    MAX_LTV = random() * MAX_BPS
+    MAX_LTV = SETTING_LTV_MAX
 
     LOGGER = Logger()
 
@@ -271,6 +287,9 @@ def main():
 
     # To avoid exponentianting later
     start_collateral = system_collateral
+
+    global_liquidation_count = 0
+    global_is_insolvent = 0
 
     # We assume it's a portion of the debt, but we don't need to add
     system_minting_fee = system_debt * MINTING_FEE / MAX_BPS
@@ -309,7 +328,10 @@ def main():
     turn = 0
     # Main Loop
     while (turn < MAX_STEPS):
-        print("Turn", turn)
+        print("")
+        print("")
+        print("")
+        print("--------------- Turn", turn, "---------------")
 
         print("Total Debt", system_debt)
         print("Total Collateral", system_collateral)
@@ -365,6 +387,8 @@ def main():
                 underwater_debt = 0
                 underwater_collateral = 0
 
+                global_liquidation_count += 1
+
                 print("New CR After Liquidation",
                       calculate_collateral_ratio(system_collateral, system_price, system_debt))
             else:
@@ -382,12 +406,16 @@ def main():
         if not is_solvent:
             print("We are insolvent, RIP")
 
+            global_is_insolvent = 1
+
             underwater_debt = system_debt - calculate_max_debt(system_collateral, system_price,
                                                                MAX_LTV)
 
             # NOTE: All collateral is underwater as liquidations
             # can be used to take all assets with current math
             underwater_collateral = system_collateral
+        else:
+            global_is_insolvent = 0
 
         # If random check passes we create more debt at the
         # maximum LTV possible to simulate risk taking behaviour
@@ -413,15 +441,15 @@ def main():
 
             drawdown_value = random() * MAX_SWING
 
-            print("Drawdown of", drawdown_value)
+            print("Drawdown of (percent)", (MAX_BPS - drawdown_value) / MAX_BPS)
 
             # Bring Price Down
             system_price = system_price * (MAX_BPS - drawdown_value) / MAX_BPS
             print("New Price", system_price)
 
-            print("Drawdown Collateral Ratio of Underwater Debt",
+            print("Drawdown Collateral Ratio of At Risk Debt",
                   calculate_collateral_ratio(at_risk_collateral, system_price, at_risk_debt))
-            print("Drawdown Collateral Ratio of System Including Underwater Debt",
+            print("Drawdown Collateral Ratio of System Including At Risk Debt",
                   calculate_collateral_ratio(system_collateral, system_price, system_debt))
 
         else:
@@ -429,15 +457,15 @@ def main():
 
             pamp_value = random() * MAX_SWING
 
-            print("Pamp of", pamp_value)
+            print("Pamp of (percent)",(MAX_BPS + pamp_value) / MAX_BPS)
             # Bring Price Up
             # NOTE: We do this as it may make some liquidations profitable
             system_price = system_price * (MAX_BPS + pamp_value) / MAX_BPS
             print("New Price", system_price)
 
-            print("Pamp Collateral Ratio of Underwater Debt",
+            print("Pamp Collateral Ratio of At Risk Debt",
                   calculate_collateral_ratio(at_risk_collateral, system_price, at_risk_debt))
-            print("Pamp Collateral Ratio of System Including Underwater Debt",
+            print("Pamp Collateral Ratio of System Including At Risk Debt",
                   calculate_collateral_ratio(system_collateral, system_price, system_debt))
 
         # TODO: Figure out if we want it here or somewhere else
@@ -462,7 +490,10 @@ def main():
             current_cr,
             current_at_risk_cr,
             underwater_debt,
-            underwater_collateral
+            underwater_collateral,
+
+            global_liquidation_count,
+            global_is_insolvent
         )
 
         # NOTE: Indentation, we're still in the while
