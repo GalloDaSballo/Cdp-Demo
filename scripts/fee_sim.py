@@ -57,16 +57,16 @@ MAX_AMM_FEE = 300  # 3%, avg AMM is 30 BPS
 INITIAL_PRICE = 1200 ## TODO: ADD Dynamic Price
 
 ## 10k steps before we end
-MAX_STEPS = 100
+MAX_STEPS = 10_000
 
 # 1k eth
 MAX_INITIAL_COLLAT = 1_000
 
 # Output to CSV and PNG
-TO_CSV = False
+TO_CSV = True
 
 #  Slow down the Terminal so you can read it
-ROLEPLAY = True
+ROLEPLAY = False
 
 ## TODO: Create settings for Multiple Loop for Brute Force Sim
 SETTING_LTV_MIN = 0
@@ -97,7 +97,8 @@ class CsvEntry():
             underwater_debt,
             underwater_collateral,
             global_liquidation_count,
-            global_is_insolvent
+            global_is_insolvent,
+            global_purges_count
     ):
         self.time = time
         self.system_collateral = system_collateral
@@ -117,6 +118,7 @@ class CsvEntry():
         self.underwater_collateral = underwater_collateral
         self.global_liquidation_count = global_liquidation_count
         self.global_is_insolvent = global_is_insolvent
+        self.global_purges_count = global_purges_count
 
     def __repr__(self):
         return str(self.__dict__)
@@ -138,7 +140,8 @@ class CsvEntry():
             self.current_cr,
             self.current_at_risk_cr,
             self.global_liquidation_count,
-            self.global_is_insolvent
+            self.global_is_insolvent,
+            self.global_purges_count
         ]
 
 
@@ -161,7 +164,8 @@ class Logger:
             "current_cr",
             "current_at_risk_cr",
             "global_liquidation_count",
-            "global_is_insolvent"
+            "global_is_insolvent",
+            "global_purges_count"
         ]
         os.makedirs('logs/fee_sims/', exist_ok=True)
 
@@ -184,7 +188,8 @@ class Logger:
             underwater_debt,
             underwater_collateral,
             global_liquidation_count,
-            global_is_insolvent
+            global_is_insolvent,
+            global_purges_count
     ):
         # Add entry
         move = CsvEntry(
@@ -205,7 +210,8 @@ class Logger:
             underwater_debt,
             underwater_collateral,
             global_liquidation_count,
-            global_is_insolvent
+            global_is_insolvent,
+            global_purges_count
         )
         self.entries.append(move)
 
@@ -291,6 +297,9 @@ def main():
     global_liquidation_count = 0
     global_is_insolvent = 0
 
+    ### How many time did we liquidate everything
+    global_purges_count = 0
+
     # We assume it's a portion of the debt, but we don't need to add
     system_minting_fee = system_debt * MINTING_FEE / MAX_BPS
 
@@ -338,7 +347,7 @@ def main():
         print("Collateral Ratio",
               calculate_collateral_ratio(system_collateral, system_price, system_debt))
 
-        #  Check insolvency
+        #  Check insolvency for At Risk
         if (calculate_max_debt(at_risk_collateral, system_price, MAX_LTV) < at_risk_debt):
             print("Debt is insolvent")
 
@@ -347,9 +356,6 @@ def main():
 
                 #  TODO: Add check for proper liquidation threshold
 
-                #  Liquidate
-                # For now we do full liquidation
-                to_liquidate = at_risk_debt
 
                 #  Cost of swapping from Stable to collateral
                 cost_to_liquidate = calculate_swap_fee(at_risk_debt, AMM_FEE)
@@ -416,6 +422,47 @@ def main():
             underwater_collateral = system_collateral
         else:
             global_is_insolvent = 0
+
+        ## NOTE: Liquidate entire system if at risk
+        if (calculate_max_debt(system_collateral, system_price, MAX_LTV) < system_debt):
+            print("Global Liquidation, MUST INVESTIGATE")
+            cost_to_liquidate = calculate_swap_fee(system_debt, AMM_FEE)
+
+            # NOTE: Technically incorrect but works for now
+
+            #  Premium = total collateral - fees - debt
+            # NOTE: Technically missing liquidation fee
+            # TODO: Add liquidation fee
+            # NOTE: If 100% liquidation, technically the fee is the remainder of the position - LTV
+            liquidation_premium = system_collateral * system_price - cost_to_liquidate - system_debt
+
+            #  Update System
+            system_collateral -= system_collateral
+            system_debt -= system_debt
+
+            #  Update Fees
+
+            # Cost of swapping from Collateral to stable
+            second_swap_fees = calculate_swap_fee(liquidation_premium, AMM_FEE)
+
+            #  Update AMM fees
+            swap_collateral_fees += cost_to_liquidate
+            swap_stable_fees += second_swap_fees
+
+            # NOTE
+            liquidator_fees_paid += cost_to_liquidate + second_swap_fees
+            liquidator_profit += liquidation_premium - second_swap_fees
+
+            #  Update Insolvency vars
+            at_risk_collateral = 0
+            at_risk_debt = 0
+
+            # If we liquidate, by definition no amount is underwater anymore
+            underwater_debt = 0
+            underwater_collateral = 0
+
+            global_purges_count += 1
+            
 
         # If random check passes we create more debt at the
         # maximum LTV possible to simulate risk taking behaviour
@@ -493,7 +540,8 @@ def main():
             underwater_collateral,
 
             global_liquidation_count,
-            global_is_insolvent
+            global_is_insolvent,
+            global_purges_count
         )
 
         # NOTE: Indentation, we're still in the while
