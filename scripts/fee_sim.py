@@ -22,15 +22,11 @@
 """
 import csv
 import os
-from random import random, seed
+from random import random
 import time
 
 import pandas as pd
 import matplotlib.pyplot as plt
-
-## Randomness seed for multiple runs
-seed(pd.Timestamp.now())
-
 
 
 MAX_BPS = 10_000
