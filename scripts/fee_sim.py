@@ -1,4 +1,10 @@
 """
+  Sim is basically:
+  - Setup
+  - Liquidate is profitable
+  - Degenerate Check (open new CDP at max TVL)
+  - Price Check (50/50 of up or down)
+
   Sim RE: Fees and Arbitrage
 
   - Minting Fee (Flat Fee)
@@ -42,10 +48,10 @@ MAX_LIQ_FEE = 1_000 ## 10%
 MAX_AMM_FEE = 300 ## 3%, avg AMM is 30 BPS
 
 ## 1 eth, 1200 usd
-INITIA_PRICE = 1200 ## TODO: ADD Dynamic Price
+INITIAL_PRICE = 1200 ## TODO: ADD Dynamic Price
 
-## 1k steps before we end
-MAX_STEPS = 10000
+## 10k steps before we end
+MAX_STEPS = 10_000
 
 ## 1k eth
 MAX_INITIAL_COLLAT = 1_000
@@ -55,6 +61,14 @@ TO_CSV = True
 
 ## Slow down the Terminal so you can read it
 ROLEPLAY = False
+
+## TODO: Create settings for Multiple Loop for Brute Force Sim
+SETTING_LTV_MIN = 0
+
+SETTING_LTV_MAX = 0
+
+## END Goal -> 100 runs of 10_000 steps for each sim
+## Each sim goes from XYZ to ZYX with a TODO: Step size
 
 class CsvEntry():
   def __init__(
@@ -231,7 +245,7 @@ def main():
 
 
   system_collateral = MAX_INITIAL_COLLAT * random()
-  system_price = INITIA_PRICE
+  system_price = INITIAL_PRICE
 
 
 
@@ -455,7 +469,7 @@ def calculate_swap_fee(amount_in, fee_bps):
 def calculate_collateral_ratio(collateral, price, debt):
   if(collateral == 0):
     return 0
-  return debt / (collateral * price)
+  return (collateral * price) / debt
 
 
 def calculate_max_debt(collateral, price, max_ltv):
