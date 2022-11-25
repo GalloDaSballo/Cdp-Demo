@@ -16,3 +16,4 @@ logs/
 # Hide outputs from sim
 *.csv
 *.png
+.idea

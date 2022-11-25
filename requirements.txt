@@ -2,4 +2,5 @@ dotmap
 eth-brownie
 pytest
 pandas
-matplotlib
+matplotlib==3.5.2
+seaborn==0.12.1
