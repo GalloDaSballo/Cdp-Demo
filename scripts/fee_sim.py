@@ -22,11 +22,15 @@
 """
 import csv
 import os
-from random import random
+from random import random, seed
 import time
 
 import pandas as pd
 import matplotlib.pyplot as plt
+
+## Randomness seed for multiple runs
+seed(pd.Timestamp.now())
+
 
 
 MAX_BPS = 10_000
@@ -36,7 +40,7 @@ MAX_BPS = 10_000
 ## 5% breaks with 10k steps
 MAX_SWING = 500
 
-MAX_MINT_FEE = 200 ## 2%
+MAX_MINT_FEE = 200 ## 2%x
 MAX_LIQ_FEE = 1_000 ## 10%
 
 MAX_AMM_FEE = 300 ## 3%, avg AMM is 30 BPS
@@ -45,7 +49,7 @@ MAX_AMM_FEE = 300 ## 3%, avg AMM is 30 BPS
 INITIA_PRICE = 1200 ## TODO: ADD Dynamic Price
 
 ## 1k steps before we end
-MAX_STEPS = 1000
+MAX_STEPS = 10000
 
 ## 1k eth
 MAX_INITIAL_COLLAT = 1_000
@@ -246,6 +250,9 @@ def main():
   print("Initial LTV", target_LTV)
   system_debt = target_debt
 
+  ## To avoid exponentianting later
+  start_collateral = system_collateral
+
   ## We assume it's a portion of the debt, but we don't need to add
   system_minting_fee = system_debt * MINTING_FEE / MAX_BPS
 
@@ -358,11 +365,11 @@ def main():
       underwater_collateral = system_collateral
 
     ## If random check passes we create more debt at the maximum LTV possible to simulate risk taking behaviour
-    if (random() * MAX_BPS > RISK_PERCENT):
+    if (int(random() * 100) % 7 == 0):
       print("Simulate Degenerate Borrowing")
 
       ## Insolvency basic, figure out random debt
-      at_risk_collateral = random() * system_collateral
+      at_risk_collateral = random() * start_collateral
 
       max_at_risk_debt = calculate_max_debt(at_risk_collateral, system_price, MAX_LTV)
 
