@@ -53,6 +53,8 @@ MAX_MINT_FEE = 200  # 2%x
 MAX_LIQ_FEE = 1_000  # 10%
 
 MAX_AMM_FEE = 300  # 3%, avg AMM is 30 BPS
+MAX_AMM_ARB = 1_000 # 10% crazy inefficient
+MAX_AMM_ARB_SIZE = 3_000 # 30% crazy big
 
 ## 1 eth, 1200 usd
 INITIAL_PRICE = 1200 ## TODO: ADD Dynamic Price
@@ -99,7 +101,14 @@ class CsvEntry():
             underwater_collateral,
             global_liquidation_count,
             global_is_insolvent,
-            global_purges_count
+            global_purges_count,
+
+            AMM_DISCOUNT,
+            AMM_DISCOUNT_SIZE,
+            total_debt_redeemed,
+            total_collateral_redeemed,
+            total_number_of_redemptions,
+            total_profit_from_redemptions
     ):
         self.time = time
         self.system_collateral = system_collateral
@@ -120,6 +129,12 @@ class CsvEntry():
         self.global_liquidation_count = global_liquidation_count
         self.global_is_insolvent = global_is_insolvent
         self.global_purges_count = global_purges_count
+        self.AMM_DISCOUNT = AMM_DISCOUNT
+        self.AMM_DISCOUNT_SIZE = AMM_DISCOUNT_SIZE
+        self.total_debt_redeemed = total_debt_redeemed
+        self.total_collateral_redeemed = total_collateral_redeemed
+        self.total_number_of_redemptions = total_number_of_redemptions
+        self.total_profit_from_redemptions = total_profit_from_redemptions
 
     def __repr__(self):
         return str(self.__dict__)
@@ -142,7 +157,14 @@ class CsvEntry():
             self.current_at_risk_cr,
             self.global_liquidation_count,
             self.global_is_insolvent,
-            self.global_purges_count
+            self.global_purges_count,
+
+            self.AMM_DISCOUNT,
+            self.AMM_DISCOUNT_SIZE,
+            self.total_debt_redeemed,
+            self.total_collateral_redeemed,
+            self.total_number_of_redemptions,
+            self.total_profit_from_redemptions
         ]
 
 
@@ -166,7 +188,15 @@ class Logger:
             "current_at_risk_cr",
             "global_liquidation_count",
             "global_is_insolvent",
-            "global_purges_count"
+            "global_purges_count",
+
+            "AMM_DISCOUNT",
+            "AMM_DISCOUNT_SIZE",
+            "total_debt_redeemed",
+            "total_collateral_redeemed",
+            "total_number_of_redemptions",
+            "total_profit_from_redemptions"
+            
         ]
         os.makedirs('logs/fee_sims/', exist_ok=True)
 
@@ -190,7 +220,14 @@ class Logger:
             underwater_collateral,
             global_liquidation_count,
             global_is_insolvent,
-            global_purges_count
+            global_purges_count,
+
+            AMM_DISCOUNT,
+            AMM_DISCOUNT_SIZE,
+            total_debt_redeemed,
+            total_collateral_redeemed,
+            total_number_of_redemptions,
+            total_profit_from_redemptions
     ):
         # Add entry
         move = CsvEntry(
@@ -212,7 +249,14 @@ class Logger:
             underwater_collateral,
             global_liquidation_count,
             global_is_insolvent,
-            global_purges_count
+            global_purges_count,
+
+            AMM_DISCOUNT,
+            AMM_DISCOUNT_SIZE,
+            total_debt_redeemed,
+            total_collateral_redeemed,
+            total_number_of_redemptions,
+            total_profit_from_redemptions
         )
         self.entries.append(move)
 
@@ -277,6 +321,16 @@ def main():
     LIQ_FEE = random() * MAX_LIQ_FEE
 
     AMM_FEE = MAX_AMM_FEE
+    ## Positive = Cheaper
+    ## TODO: Add to rest of sim
+    ## NOTE: For now, we just set once per turn and re-set back
+    AMM_DISCOUNT = 0
+    AMM_DISCOUNT_SIZE = 0
+
+    total_debt_redeemed = 0
+    total_collateral_redeemed = 0
+    total_number_of_redemptions = 0
+    total_profit_from_redemptions = 0
 
     system_collateral = MAX_INITIAL_COLLAT * random()
     system_price = INITIAL_PRICE
@@ -312,6 +366,8 @@ def main():
     # NOTE: May be worthwhile having a separate
     # sim exclusively about the liquidation fee vs size of CDP
     liquidator_liquidation_fee_receive = 0
+
+
 
     # TODO: Liquidation fee / Caller incentive
 
@@ -411,6 +467,60 @@ def main():
             print("Risky debt is solvent, skip")
         
         global_is_insolvent = 0
+
+        ## TODO: Check for Redemptions
+        ## Create a arb for AMM size
+        ## Arb is on the swap (buy cheaper, liquidate)
+        ## Track them, and track life of CRs
+        if int(random() * 100) % 7 == 0:
+            """
+                Redemptions
+
+                For now we just compute a discount and a size
+                Technically, because of x * y = k size and discount are related
+                But haven't figured out the math yet
+            """
+            ## Add AMM Arb
+            AMM_DISCOUNT = random() * MAX_AMM_ARB / MAX_BPS
+            AMM_DISCOUNT_SIZE = system_collateral * random() * MAX_AMM_ARB_SIZE / MAX_BPS
+            
+
+            discounted_price = system_price * (MAX_BPS - AMM_DISCOUNT) / MAX_BPS
+            print("discounted_price", discounted_price)
+
+            profit_from_discount_per_token = system_price - discounted_price
+            print("profit_from_discount_per_token", profit_from_discount_per_token)
+
+            total_profit = profit_from_discount_per_token * AMM_DISCOUNT_SIZE
+            print("total_profit", total_profit)
+
+            ## Reduce Collateral at Price
+            print("CR Before Redemptions",
+                      calculate_collateral_ratio(system_collateral, system_price, system_debt))
+
+            
+            collateral_redemed = AMM_DISCOUNT_SIZE / system_price
+            print("collateral_redemed", collateral_redemed)
+
+            ## Reduce Debit at AMM SIZE
+            system_debt -= AMM_DISCOUNT_SIZE
+            system_collateral -= collateral_redemed
+
+            total_debt_redeemed += AMM_DISCOUNT_SIZE
+            total_collateral_redeemed += collateral_redemed
+            total_number_of_redemptions += 1
+            total_profit_from_redemptions += total_profit
+
+            print("CR After Redemptions",
+                calculate_collateral_ratio(system_collateral, system_price, system_debt))
+        else:
+            AMM_DISCOUNT = 0
+            AMM_DISCOUNT_SIZE = 0
+
+
+
+
+
 
         # Check for solvency &
         ## NOTE: Liquidate entire system if at risk
@@ -545,7 +655,14 @@ def main():
 
             global_liquidation_count,
             global_is_insolvent,
-            global_purges_count
+            global_purges_count,
+
+            AMM_DISCOUNT,
+            AMM_DISCOUNT_SIZE,
+            total_debt_redeemed,
+            total_collateral_redeemed,
+            total_number_of_redemptions,
+            total_profit_from_redemptions
         )
 
         # NOTE: Indentation, we're still in the while
