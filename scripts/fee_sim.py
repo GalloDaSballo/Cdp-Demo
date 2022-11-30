@@ -66,7 +66,13 @@ MAX_STEPS = 10_000
 MAX_INITIAL_COLLAT = 1_000
 
 #  Slow down the Terminal so you can read it
-ROLEPLAY = False
+ROLEPLAY = True
+
+## 1 / 7 chance of someone levering to the max
+YOLO_DENOM = 7
+
+## 1 / 1 chance of a favourable price
+REDEMPTION_DENOM = 1
 
 # Output to CSV and PNG
 TO_CSV = not ROLEPLAY
@@ -472,7 +478,7 @@ def main():
         ## Create a arb for AMM size
         ## Arb is on the swap (buy cheaper, liquidate)
         ## Track them, and track life of CRs
-        if int(random() * 100) % 7 == 0:
+        if int(random() * 100) % REDEMPTION_DENOM == 0:
             """
                 Redemptions
 
@@ -580,7 +586,7 @@ def main():
 
         # If random check passes we create more debt at the
         # maximum LTV possible to simulate risk taking behaviour
-        if int(random() * 100) % 7 == 0:
+        if int(random() * 100) % YOLO_DENOM == 0:
             print("Simulate Degenerate Borrowing")
 
             # Insolvency basic, figure out random debt
