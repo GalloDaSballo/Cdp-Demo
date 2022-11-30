@@ -66,7 +66,7 @@ MAX_STEPS = 10_000
 MAX_INITIAL_COLLAT = 1_000
 
 #  Slow down the Terminal so you can read it
-ROLEPLAY = True
+ROLEPLAY = False
 
 ## 1 / 7 chance of someone levering to the max
 YOLO_DENOM = 7
