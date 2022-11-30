@@ -6,3 +6,14 @@ reports/
 .env
 
 node_modules/
+
+# logging output
+logs/
+
+# macos system files
+.DS_Store
+
+# Hide outputs from sim
+*.csv
+*.png
+.idea
