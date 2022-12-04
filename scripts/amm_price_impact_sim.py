@@ -44,7 +44,7 @@ BTC_DECIMALS = 8
 MAX_LTV = 8_500 ## 85% LTV
 MAX_BPS = 10_000
 
-MAX_LP_PERCENT = MAX_BPS
+MAX_LP_BPS = MAX_BPS
 
 ## At risk BTC -> Needs to be liquidated
 ## Available in AMM BTC -> Can be bought at price impact before thinking about taking debt
@@ -97,15 +97,15 @@ MORE_RISK = False
 def sim():
   AVG_LTV = random() * MAX_LTV
 
-  LP_PERCENT = random() * MAX_LP_PERCENT
-  MAX_RISK_PERCENT = random() * LP_PERCENT
+  LP_BPS = random() * MAX_LP_BPS
+  LIQUIDATABLE_BPS = random() * LP_BPS
 
   ## NOTE / TODO:
   ## We separate higher risk to zoom into insolvency where 1/1 of liquidity is available
   ## As this is more interesting for the Exponential AMM Math
   if MORE_RISK:
     ## Of the whole thing vs of the LP %
-    MAX_RISK_PERCENT = random() * MAX_BPS
+    LIQUIDATABLE_BPS = random() * MAX_BPS
 
   
   
@@ -114,24 +114,25 @@ def sim():
   ## At 100% + 1 we have no economic incentive to save
   AT_RISK_LTV = MAX_LTV + random() * (MAX_BPS - MAX_LTV)
 
-  deposited_eth = AMT_ETH * 10 ** ETH_DECIMALS
+  ## NOTE: No extra decimals cause Python handles them
+  deposited_eth = AMT_ETH
   print("deposited_eth", deposited_eth)
-  borrowed_btc = deposited_eth / (10 ** ETH_DECIMALS - BTC_DECIMALS) * AVG_LTV / MAX_BPS
+  borrowed_btc = deposited_eth * AVG_LTV / MAX_BPS
   print("borrowed_btc", borrowed_btc)
 
-  max_liquidatable = borrowed_btc * MAX_RISK_PERCENT / MAX_BPS
+  max_liquidatable = borrowed_btc * LIQUIDATABLE_BPS / MAX_BPS
 
   print("max_liquidatable", max_liquidatable)
-  print("as percent", MAX_RISK_PERCENT)
+  print("as percent", LIQUIDATABLE_BPS)
 
   ## TODO: Check if correct or if it's just floating math
-  # assert MAX_RISK_PERCENT == max_liquidatable * MAX_BPS / borrowed_btc
+  # assert LIQUIDATABLE_BPS == max_liquidatable * MAX_BPS / borrowed_btc
 
   ## Assume 13 ETH = 1 BTC to KIS
   ## NOTE: Assume LP value is 1/1 which technically is naive, but for sim purposes should be sufficient
   price_ratio = 13
 
-  btc_in_amm = LP_PERCENT * borrowed_btc / MAX_BPS
+  btc_in_amm = LP_BPS * borrowed_btc / MAX_BPS
   print("btc_in_amm", btc_in_amm)
   eth_in_amm = btc_in_amm * price_ratio
   print("as_eth", eth_in_amm)
@@ -202,11 +203,11 @@ def sim():
     print("liquidatable_debt - max_amount", liquidatable_debt - max_amount)
     ## TODO: More math around how capped, and what's the risk
 
-    as_percent = (liquidatable_debt - max_amount) / liquidatable_debt * 100
+    as_percent = (max_amount) / liquidatable_debt * 100
     print("as_percent we can only liquidate up to", as_percent)
     
-    print("MAX_RISK_PERCENT / MAX_BPS * 100 was", MAX_RISK_PERCENT / MAX_BPS * 100)
-    print("LP_PERCENT / MAX_BPS * 100 was", LP_PERCENT / MAX_BPS * 100)
+    print("LIQUIDATABLE_BPS / MAX_BPS * 100 was", LIQUIDATABLE_BPS / MAX_BPS * 100)
+    print("LP_BPS / MAX_BPS * 100 was", LP_BPS / MAX_BPS * 100)
 
     print("-----  -----")
     print("")
