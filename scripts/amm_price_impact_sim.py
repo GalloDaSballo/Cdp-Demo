@@ -1,4 +1,14 @@
 from random import random
+import csv
+import os
+import time
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+
+sns.set_style('whitegrid')
+plt.rcParams['figure.figsize'] = 15, 30
 
 """
   Sim of Price Impact of an AMM
@@ -51,10 +61,22 @@ MAX_LP_PERCENT = MAX_BPS
   Other MM would not want to engage with that, and would rather liquidate and make a arb ETH -> ETH
 """
 
+MORE_RISK = False
+
 def sim():
   AVG_LTV = random() * MAX_LTV
-  MAX_RISK_PERCENT = random() * MAX_BPS
+
   LP_PERCENT = random() * MAX_LP_PERCENT
+  MAX_RISK_PERCENT = random() * LP_PERCENT
+
+  ## NOTE / TODO:
+  ## We separate higher risk to zoom into insolvency where 1/1 of liquidity is available
+  ## As this is more interesting for the Exponential AMM Math
+  if MORE_RISK:
+    ## Of the whole thing vs of the LP %
+    MAX_RISK_PERCENT = random() * MAX_BPS
+
+  
   
   ## Always greater than MAX_LTV
   ## But smaller than 100%
@@ -78,17 +100,23 @@ def sim():
   ## NOTE: Assume LP value is 1/1 which technically is naive, but for sim purposes should be sufficient
   price_ratio = 13
 
-  in_amm = LP_PERCENT * borrowed_btc / MAX_BPS
-  as_eth = in_amm * price_ratio
+  btc_in_amm = LP_PERCENT * borrowed_btc / MAX_BPS
+  print("btc_in_amm", btc_in_amm)
+  eth_in_amm = btc_in_amm * price_ratio
+  print("as_eth", eth_in_amm)
 
-  reserve_btc = in_amm
-  reserve_eth = as_eth
+  reserve_btc = btc_in_amm
+  reserve_eth = eth_in_amm
 
   print("price_given_in(1, reserve_btc, reserve_eth", price_given_in(1, reserve_eth, reserve_btc))
   initial_price = price_given_in(1, reserve_eth, reserve_btc)
   
   ## Price makes sense
-  # assert initial_price >= 12 and initial_price <= 14
+  ## NOTE: I have times where I get a initial price of 152, etc..
+  ## For this reason we let it revert as liquidity is so thin you get crazy values
+  ## TODO: Decide if worth investigating for those edge case
+  ##    Hunch is it's not worth it as they are not realistic / are too extreme (1 eth in liqudity)
+  assert initial_price >= 12 and initial_price <= 15
 
 
   ## What is the maximum I'm willing to pay to get eBTC to liquidate to ETH, if debt is N and I get M out?
@@ -128,12 +156,28 @@ def sim():
   print("max_amount", max_amount)
 
   ## If we can buy all, then we good
-  if(max_amount >liquidatable_debt):
+  if(max_amount > liquidatable_debt):
     print("We can safely liquidate")
     return True
   else:
     ## Else liquidate only up to what's profitable
-    print("We are capped")
+    print("")
+    print("")
+    print("----- We are capped -----")
+
+    print("liquidatable_debt - max_amount", liquidatable_debt - max_amount)
+    ## TODO: More math around how capped, and what's the risk
+
+    as_percent = (liquidatable_debt - max_amount) / liquidatable_debt * 100
+    print("as_percent we can only liquidate up to", as_percent)
+    
+    print("MAX_RISK_PERCENT / MAX_BPS * 100 was", MAX_RISK_PERCENT / MAX_BPS * 100)
+    print("LP_PERCENT / MAX_BPS * 100 was", LP_PERCENT / MAX_BPS * 100)
+
+    print("-----  -----")
+    print("")
+    print("")
+    
     return False
   
 
@@ -148,6 +192,9 @@ def main():
   for i in range(RUNS):
     try:
       if sim():
+        print("")
+        print("")
+        print("")
         counter += 1
       else:
         insolvent += 1
