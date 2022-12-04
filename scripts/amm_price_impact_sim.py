@@ -245,3 +245,9 @@ if __name__ == '__main__':
   main()
   
 
+"""
+  Variables to fix / linearly test
+  - MAX_LTV (5_000 <= MAX_LTV <= 9_998) // Between 50% and 9_998 LTV || 200% - 100.020004001% CR
+  - MAX_LP_BPS (0 <= MAX_LP_BPS <= 10_000) Up to 100% Available in AMM
+  - LIQUIDATABLE_BPS (with 0 < LIQUIDATABLE_BPS <= MAX_LP_BPS) Up to 100% of liquid to be liquidated
+"""
