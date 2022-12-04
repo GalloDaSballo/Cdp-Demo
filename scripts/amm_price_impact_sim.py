@@ -61,7 +61,38 @@ MAX_LP_PERCENT = MAX_BPS
   Other MM would not want to engage with that, and would rather liquidate and make a arb ETH -> ETH
 """
 
+
+"""
+  Logger Class
+  TODO: Change to library
+  
+"""
+
+
+"""
+  TODO:
+  Figure out how to log
+
+  Stuff to Log
+    deposited_eth,
+    borrowed_btc,
+    max_liquidatable,
+    reserve_btc,
+    reserve_eth,
+    initial_price,
+    liquidatable_collateral,
+    profitability_bps,
+    max_price,
+    max_amount
+"""
+
+
 MORE_RISK = False
+
+
+"""
+  Bulk of the logic
+"""
 
 def sim():
   AVG_LTV = random() * MAX_LTV
@@ -134,8 +165,8 @@ def sim():
   liquidatable_debt = max_liquidatable
   print("liquidatable_debt", liquidatable_debt)
   ## TODO: Check MATH
-  liquidatable_collataeral = liquidatable_debt / price_ratio / AT_RISK_LTV * MAX_BPS
-  print("liquidatable_collataeral", liquidatable_collataeral)
+  liquidatable_collateral = liquidatable_debt / price_ratio / AT_RISK_LTV * MAX_BPS
+  print("liquidatable_collateral", liquidatable_collateral)
 
   ## Check if we can liquidate all before it being unprofitable
 
@@ -154,6 +185,9 @@ def sim():
   ## Check amount we can buy
   max_amount = max_in_before_price_limit(max_price, reserve_eth, reserve_btc)
   print("max_amount", max_amount)
+
+
+  ## TODO: Add Logging
 
   ## If we can buy all, then we good
   if(max_amount > liquidatable_debt):
