@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
+from scripts.loggers.amm_price_impact_logger import AmmPriceImpactLogger, AmmPriceImpactEntry
+
 sns.set_style('whitegrid')
 plt.rcParams['figure.figsize'] = 15, 30
 
@@ -15,7 +17,6 @@ plt.rcParams['figure.figsize'] = 15, 30
   To simulate Availability of Profitable Liquidations based on AMM Liquidity.
   We assume ETH -> eBTC -> ETH Pure Arb to be the only way to liquidate
 """
-
 
 def price_given_in(amount_in, reserve_in, reserve_out):
   out = amount_out_given_in(amount_in, reserve_in, reserve_out)
@@ -67,7 +68,10 @@ MAX_LP_BPS = MAX_BPS
   TODO: Change to library
   
 """
-
+class SimResult():
+  def __init__(self, is_solvent, log_entry) -> None:
+    self.is_solvent = is_solvent
+    self.log_entry = log_entry
 
 """
   TODO:
@@ -86,15 +90,13 @@ MAX_LP_BPS = MAX_BPS
     max_amount
 """
 
-
 MORE_RISK = False
-
 
 """
   Bulk of the logic
 """
 
-def sim():
+def sim(run) -> SimResult:
   AVG_LTV = random() * MAX_LTV
 
   LP_BPS = random() * MAX_LP_BPS
@@ -107,8 +109,6 @@ def sim():
     ## Of the whole thing vs of the LP %
     LIQUIDATABLE_BPS = random() * MAX_BPS
 
-  
-  
   ## Always greater than MAX_LTV
   ## But smaller than 100%
   ## At 100% + 1 we have no economic incentive to save
@@ -189,11 +189,12 @@ def sim():
 
 
   ## TODO: Add Logging
+  log_entry = AmmPriceImpactEntry(run, deposited_eth=deposited_eth, borrowed_btc=borrowed_btc, max_liquidatable=max_liquidatable, reserve_btc=reserve_btc, reserve_eth=reserve_eth, initial_price=initial_price, liquidatable_collateral=liquidatable_collateral, profitability_bps=profitability_bps, max_price=max_price, max_amount=max_amount)
 
   ## If we can buy all, then we good
   if(max_amount > liquidatable_debt):
     print("We can safely liquidate")
-    return True
+    return SimResult(is_solvent=True, log_entry=log_entry)
   else:
     ## Else liquidate only up to what's profitable
     print("")
@@ -213,10 +214,7 @@ def sim():
     print("")
     print("")
     
-    return False
-  
-
-
+    return SimResult(is_solvent=False, log_entry=log_entry)
   
 RUNS = 10_000
 
@@ -224,22 +222,28 @@ def main():
   counter = 0
   exc = 0
   insolvent = 0
+
+  logger = AmmPriceImpactLogger()
+
   for i in range(RUNS):
     try:
-      if sim():
+      sim_result = sim(i)
+      if sim_result.is_solvent:
         print("")
         print("")
         print("")
         counter += 1
       else:
         insolvent += 1
+      logger.add_entry(sim_result.log_entry)
     except:
       print("Something went wrong")
       exc += 1
   
   print("Can safely liquidate", counter, "out of ", RUNS)
   print("Exceptions (not necessarily insolvent)", exc)
-
+  print("Logging to CSV")
+  logger.to_csv()
 
 if __name__ == '__main__':
   main()
