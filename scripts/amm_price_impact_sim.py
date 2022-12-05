@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-from scripts.loggers.amm_price_impact_logger import AmmPriceImpactLogger, AmmPriceImpactEntry
+from scripts.loggers.amm_price_impact_logger import AmmPriceImpactLogger, AmmPriceImpactEntry, AmmBruteForceLogger, AMMBruteForceEntry
 
 sns.set_style('whitegrid')
 plt.rcParams['figure.figsize'] = 15, 30
@@ -43,10 +43,11 @@ def max_in_before_price_limit(price_limit, reserve_in, reserve_out):
 AMT_ETH = 10_000
 ETH_DECIMALS = 18
 BTC_DECIMALS = 8
-MAX_LTV = 8_500 ## 85% LTV
+
 MAX_BPS = 10_000
 
-MAX_LP_BPS = MAX_BPS
+SETTING_MAX_LTV = 8_500 ## 85% LTV
+SETTING_MAX_LP_BPS = MAX_BPS
 
 ## At risk BTC -> Needs to be liquidated
 ## Available in AMM BTC -> Can be bought at price impact before thinking about taking debt
@@ -74,34 +75,37 @@ class SimResult():
     self.is_solvent = is_solvent
     self.log_entry = log_entry
 
-"""
-  TODO:
-  Figure out how to log
-
-  Stuff to Log
-    deposited_eth,
-    borrowed_btc,
-    max_liquidatable,
-    reserve_btc,
-    reserve_eth,
-    initial_price,
-    liquidatable_collateral,
-    profitability_bps,
-    max_price,
-    max_amount
-"""
-
 MORE_RISK = False
 
 """
   Bulk of the logic
 """
 
-def sim(run) -> SimResult:
+
+def sim(run, MAX_LTV, MAX_LP_BPS, LIQUIDATABLE_BPS, AT_RISK_LTV) -> SimResult:
+  """
+    Variables to fix / linearly test
+    - MAX_LTV (5_000 <= MAX_LTV <= 9_998) // Between 50% and 9_998 LTV || 200% - 100.020004001% CR
+    - MAX_LP_BPS (0 <= MAX_LP_BPS <= 10_000) Up to 100% Available in AMM
+    - LIQUIDATABLE_BPS (with 0 < LIQUIDATABLE_BPS <= MAX_LP_BPS) Up to 100% of liquid to be liquidated
+
+    TODO: 
+    Move those 3 as variables
+    Change the Loop to 3 var loop and increase by 1 bps
+    Stop the loop once you get insolvency (????)
+
+    Safe -> Risky
+
+    MAX_LTV -> 5_000 -> 9_998
+    MAX_LP_BPS -> 10_000 -> 0
+    LIQUIDATABLE_BPS -> 0 -> MAX_LP_BPS
+  """
+
+  ## TODO: Do we need this?
   AVG_LTV = random() * MAX_LTV
 
-  LP_BPS = random() * MAX_LP_BPS
-  LIQUIDATABLE_BPS = random() * LP_BPS
+  LP_BPS = MAX_LP_BPS
+  LIQUIDATABLE_BPS = LIQUIDATABLE_BPS
 
   ## NOTE / TODO:
   ## We separate higher risk to zoom into insolvency where 1/1 of liquidity is available
@@ -113,7 +117,7 @@ def sim(run) -> SimResult:
   ## Always greater than MAX_LTV
   ## But smaller than 100%
   ## At 100% + 1 we have no economic incentive to save
-  AT_RISK_LTV = MAX_LTV + random() * (MAX_BPS - MAX_LTV)
+  ## TODO: Do we need this? I Think we need to also pass this as this is the profitability %
 
   ## NOTE: No extra decimals cause Python handles them
   deposited_eth = AMT_ETH
@@ -218,9 +222,9 @@ def sim(run) -> SimResult:
     return SimResult(is_solvent=False, log_entry=log_entry)
   
 RUNS = 10_000
-LOG = False
+LOG = True
 
-def main():
+def random_run():
   counter = 0
   exc = 0
   insolvent = 0
@@ -248,20 +252,68 @@ def main():
   if(LOG):
     logger.to_csv()
 
+def main():
+  counter = 0
+  exc = 0
+  insolvent = 0
+  runs = 0
+
+  logger = AmmBruteForceLogger()
+
+  ## Must be non-zero as 0 liquidty means a revert
+  RANGE_MAX_LP_BPS = reversed(range(100, 10_000, 100))
+  
+  max_ltv = SETTING_MAX_LTV
+
+  ## NOTE: Effectively the profitability value
+  AT_RISK_LTV_RANGE = range(SETTING_MAX_LTV + 1, MAX_BPS - 1, 500)
+  ## NOTE: Quickly see LTV ranges
+  # for x in AT_RISK_LTV_RANGE:
+  #   print("x", x)
+  # return 
+
+  ## Each entry is a tuple of 3 values
+  ## max_ltv, max_lp_bps, liquidatable_bps, at_risk_ltv
+  combinations = []
+
+
+  for max_lp_bps in RANGE_MAX_LP_BPS:
+    RANGE_LIQUIDATABLE_BPS = (range(0, MAX_BPS, 100))
+    for at_risk_ltv in  AT_RISK_LTV_RANGE:
+      for liquidatable_bps in RANGE_LIQUIDATABLE_BPS:
+        runs += 1
+        try:
+          sim_result = sim(runs, max_ltv, max_lp_bps, liquidatable_bps, at_risk_ltv)
+          if sim_result.is_solvent:
+            print("")
+            print("")
+            print("")
+            counter += 1
+          else:
+            insolvent += 1
+            log_entry = AMMBruteForceEntry(
+              runs,
+              max_ltv, max_lp_bps, liquidatable_bps, at_risk_ltv
+            )
+            logger.add_entry(log_entry)
+            break ## Go to next range
+        except:
+          print("Something went wrong")
+          exc += 1
+    
+
+  
+  print("Can safely liquidate", counter, "out of ", runs)
+  print("Exceptions (not necessarily insolvent)", exc)
+  print("Logging to CSV")
+  if(LOG):
+    logger.to_csv()
+  
+  print("combinations", combinations)
+
 if __name__ == '__main__':
   main()
-  
 
-"""
-  Variables to fix / linearly test
-  - MAX_LTV (5_000 <= MAX_LTV <= 9_998) // Between 50% and 9_998 LTV || 200% - 100.020004001% CR
-  - MAX_LP_BPS (0 <= MAX_LP_BPS <= 10_000) Up to 100% Available in AMM
-  - LIQUIDATABLE_BPS (with 0 < LIQUIDATABLE_BPS <= MAX_LP_BPS) Up to 100% of liquid to be liquidated
-"""
-
-"""
-  To Chart -> All
-"""
 
 """
   Specifically to check -> First insolvency at
