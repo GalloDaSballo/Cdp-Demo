@@ -1,7 +1,4 @@
 from random import random
-import csv
-import os
-import time
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -16,6 +13,10 @@ plt.rcParams['figure.figsize'] = 15, 30
   Sim of Price Impact of an AMM
   To simulate Availability of Profitable Liquidations based on AMM Liquidity.
   We assume ETH -> eBTC -> ETH Pure Arb to be the only way to liquidate
+
+  TODO: Find relations with this chart
+  https://www.desmos.com/calculator/jfctve72w9
+  
 """
 
 def price_given_in(amount_in, reserve_in, reserve_out):
@@ -217,6 +218,7 @@ def sim(run) -> SimResult:
     return SimResult(is_solvent=False, log_entry=log_entry)
   
 RUNS = 10_000
+LOG = False
 
 def main():
   counter = 0
@@ -243,7 +245,8 @@ def main():
   print("Can safely liquidate", counter, "out of ", RUNS)
   print("Exceptions (not necessarily insolvent)", exc)
   print("Logging to CSV")
-  logger.to_csv()
+  if(LOG):
+    logger.to_csv()
 
 if __name__ == '__main__':
   main()
@@ -254,4 +257,13 @@ if __name__ == '__main__':
   - MAX_LTV (5_000 <= MAX_LTV <= 9_998) // Between 50% and 9_998 LTV || 200% - 100.020004001% CR
   - MAX_LP_BPS (0 <= MAX_LP_BPS <= 10_000) Up to 100% Available in AMM
   - LIQUIDATABLE_BPS (with 0 < LIQUIDATABLE_BPS <= MAX_LP_BPS) Up to 100% of liquid to be liquidated
+"""
+
+"""
+  To Chart -> All
+"""
+
+"""
+  Specifically to check -> First insolvency at
+  Relation between changes in these 3 variables
 """
