@@ -12,7 +12,16 @@ plt.rcParams['figure.figsize'] = 15, 30
 
 """
   CRV backtest of amm_price_impact_simplified
-  Based on https://twitter.com/lookonchain/status/1595022256018702339
+
+  High Level Overview
+  https://twitter.com/lookonchain/status/1595022256018702339
+
+  Borrows and Liquidations History
+  https://aave.blockanalitica.com/v2/ethereum/wallets/0x57e04786e231af3343562c062e0d058f25dace9e/
+
+
+  Loss - 2.64M CRV
+  https://twitter.com/AaveAave/status/1595168982541209611
 """
 
 def price_given_in(amount_in, reserve_in, reserve_out):
@@ -75,11 +84,12 @@ def main():
   print("")
 
   x = USDC_BASE * liquidity / MAX_BPS
-  y = x * price_ratio ## 13 times more ETH than BTC
+  y = x / price_ratio ## 13 times more ETH than BTC
 
   print("Given liquidity BPS", liquidity)
   print("Given premium BPS betweem", MIN_PROFIT, MAX_PROFIT)
 
+  ## Ratio between USDC / CRV
   spot_price = price_given_in(1, x, y)
   print("spot_price", spot_price)
 
@@ -89,20 +99,21 @@ def main():
   max_price = spot_price * (MAX_BPS + MAX_PROFIT) / MAX_BPS
   print("max_price", max_price)
 
-  max_eth_before_insolvent = max_in_before_price_limit(max_price, x, y)
-  max_eth_before_insolvent_sqrt = max_in_before_price_limit_sqrt(max_price, x, y)
-  max_usdc_liquidatable = amount_out_given_in(max_eth_before_insolvent, x, y)
-  max_usdc_liquidatable_sqrt = amount_out_given_in(max_eth_before_insolvent_sqrt, x, y)
+  ## Max amount of USDC before we're insolvent
+  max_usdc_before_insolvent = max_in_before_price_limit(max_price, x, y)
+  max_usdc_before_insolvent_sqrt = max_in_before_price_limit_sqrt(max_price, x, y)
+  max_crv_liquidatable = amount_out_given_in(max_usdc_before_insolvent, x, y)
+  max_crv_liquidatable_sqrt = amount_out_given_in(max_usdc_before_insolvent_sqrt, x, y)
 
-  print("You can liquidate at most", max_usdc_liquidatable)
-  print("As portion of Total Supply BPS", max_usdc_liquidatable / USDC_BASE * MAX_BPS)
-  print("As portion of Total Liquidity BPS", max_usdc_liquidatable / x * MAX_BPS)
+  print("You can liquidate at most", max_crv_liquidatable)
+  print("As portion of Total Supply BPS", max_crv_liquidatable / USDC_BASE * MAX_BPS)
+  print("As portion of Total Liquidity BPS", max_crv_liquidatable / x * MAX_BPS)
 
   print("")
   print("SQRT FORMULA")
-  print("You can liquidate at most", max_usdc_liquidatable_sqrt)
-  print("As portion of Total Supply BPS", max_usdc_liquidatable_sqrt / USDC_BASE * MAX_BPS)
-  print("As portion of Total Liquidity BPS", max_usdc_liquidatable_sqrt / x * MAX_BPS)
+  print("You can liquidate at most", max_crv_liquidatable_sqrt)
+  print("As portion of Total Supply BPS", max_crv_liquidatable_sqrt / USDC_BASE * MAX_BPS)
+  print("As portion of Total Liquidity BPS", max_crv_liquidatable_sqrt / x * MAX_BPS)
 
 
   ### === WORST CASE SCENARIO === ###
@@ -111,21 +122,21 @@ def main():
   min_price = spot_price * (MAX_BPS + MIN_PROFIT) / MAX_BPS
   print("min_price", min_price)
   
-  min_max_eth_before_insolvent = max_in_before_price_limit(min_price, x, y)
-  min_max_eth_before_insolvent_sqrt = max_in_before_price_limit_sqrt(min_price, x, y)
-  min_max_usdc_liquidatable = amount_out_given_in(min_max_eth_before_insolvent, x, y)
-  min_max_usdc_liquidatable_sqrt = amount_out_given_in(min_max_eth_before_insolvent_sqrt, x, y)
+  min_max_usdc_before_insolvent = max_in_before_price_limit(min_price, x, y)
+  min_max_usdc_before_insolvent_sqrt = max_in_before_price_limit_sqrt(min_price, x, y)
+  min_max_crv_liquidatable = amount_out_given_in(min_max_usdc_before_insolvent, x, y)
+  min_max_crv_liquidatable_sqrt = amount_out_given_in(min_max_usdc_before_insolvent_sqrt, x, y)
 
 
-  print("You can liquidate at worst", min_max_usdc_liquidatable)
-  print("As portion of Total Supply BPS", min_max_usdc_liquidatable / USDC_BASE * MAX_BPS)
-  print("As portion of Total Liquidity BPS", min_max_usdc_liquidatable / x * MAX_BPS)
+  print("You can liquidate at worst", min_max_crv_liquidatable)
+  print("As portion of Total Supply BPS", min_max_crv_liquidatable / USDC_BASE * MAX_BPS)
+  print("As portion of Total Liquidity BPS", min_max_crv_liquidatable / x * MAX_BPS)
 
   print("")
   print("SQRT FORMULA")
-  print("You can liquidate at worst", min_max_usdc_liquidatable_sqrt)
-  print("As portion of Total Supply BPS", min_max_usdc_liquidatable_sqrt / USDC_BASE * MAX_BPS)
-  print("As portion of Total Liquidity BPS", min_max_usdc_liquidatable_sqrt / x * MAX_BPS)
+  print("You can liquidate at worst", min_max_crv_liquidatable_sqrt)
+  print("As portion of Total Supply BPS", min_max_crv_liquidatable_sqrt / USDC_BASE * MAX_BPS)
+  print("As portion of Total Liquidity BPS", min_max_crv_liquidatable_sqrt / x * MAX_BPS)
 
 
   

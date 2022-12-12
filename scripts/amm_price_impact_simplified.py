@@ -76,7 +76,7 @@ def main():
     print("")
 
     x = BTC_BASE * liquidity / MAX_BPS
-    y = x * price_ratio ## 13 times more ETH than BTC
+    y = x / price_ratio ## 13 times more ETH than BTC
 
     print("### === CASE LIQUIDITY BPS === ###", liquidity)
     print("Given premium BPS betweem", MIN_PROFIT, MAX_PROFIT)
