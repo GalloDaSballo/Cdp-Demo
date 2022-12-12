@@ -49,13 +49,14 @@ START_PRICE = 13 ## e.g. 13 eth to btc
 
 AMT_ETH = 1000e18
 
+# 70 BPS (roughly greater than fees)
+MIN_PROFIT = 70
+MAX_PROFIT = MAX_BPS - LTV
+
 def main():
   ## From 50% to 1%
   RANGE_LIQUIDITY = reversed(range(100, MAX_LIQUIDITY, 100))
-
-  ## From 15% to 0%
-  PROFITABILITY_RANGE = reversed(range(100, MAX_BPS - LTV, 100))
-
+  
   ## 1k ETH as base value
   ETH_BASE = 1000e18
 
@@ -69,28 +70,35 @@ def main():
   ## NOTE: No extra decimals cause Python handles them
 
   for liquidity in RANGE_LIQUIDITY:
-    for premium in PROFITABILITY_RANGE:
-      print("")
-      print("")
-      print("")
+    print("")
+    print("")
+    print("")
 
-      x = BTC_BASE * liquidity / MAX_BPS
-      y = x * price_ratio ## 13 times more ETH than BTC
+    x = BTC_BASE * liquidity / MAX_BPS
+    y = x * price_ratio ## 13 times more ETH than BTC
 
-      print("Given liquidity BPS", liquidity)
-      print("Given premium BPS", premium)
+    print("Given liquidity BPS", liquidity)
+    print("Given premium BPS betweem", MIN_PROFIT, MAX_PROFIT)
 
-      spot_price = price_given_in(1, x, y)
-      print("spot_price", spot_price)
-      max_price = spot_price * (MAX_BPS + premium) / MAX_BPS
-      print("max_price", max_price)
+    spot_price = price_given_in(1, x, y)
+    print("spot_price", spot_price)
+    max_price = spot_price * (MAX_BPS + MAX_PROFIT) / MAX_BPS
+    min_price = spot_price * (MAX_BPS + MIN_PROFIT) / MAX_BPS
+    print("max_price", max_price)
 
-      max_eth_before_insolvent = max_in_before_price_limit(max_price, x, y)
-      btc_liquidatable = amount_out_given_in(max_eth_before_insolvent, x, y)
+    max_eth_before_insolvent = max_in_before_price_limit(max_price, x, y)
+    max_btc_liquidatable = amount_out_given_in(max_eth_before_insolvent, x, y)
 
-      print("You can liquidate", btc_liquidatable)
-      print("As portion of Total Supply BPS", btc_liquidatable / BTC_BASE * MAX_BPS)
-      print("As portion of Total Liquidity BPS", btc_liquidatable / x * MAX_BPS)
+    min_max_eth_before_insolvent = max_in_before_price_limit(min_price, x, y)
+    min_max_btc_liquidatable = amount_out_given_in(min_max_eth_before_insolvent, x, y)
+
+    print("You can liquidate at most", max_btc_liquidatable)
+    print("As portion of Total Supply BPS", max_btc_liquidatable / BTC_BASE * MAX_BPS)
+    print("As portion of Total Liquidity BPS", max_btc_liquidatable / x * MAX_BPS)
+
+    print("You can liquidate at worst", min_max_btc_liquidatable)
+    print("As portion of Total Supply BPS", min_max_btc_liquidatable / BTC_BASE * MAX_BPS)
+    print("As portion of Total Liquidity BPS", min_max_btc_liquidatable / x * MAX_BPS)
 
 
   
