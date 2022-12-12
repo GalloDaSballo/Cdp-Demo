@@ -131,10 +131,14 @@ def sim(run, MAX_LTV, MAX_LP_BPS, LIQUIDATABLE_BPS, AT_RISK_LTV) -> SimResult:
   ## At 100% + 1 we have no economic incentive to save
   ## TODO: Do we need this? I Think we need to also pass this as this is the profitability %
 
+  ## Assume 13 ETH = 1 BTC to KIS
+  ## NOTE: Assume LP value is 1/1 which technically is naive, but for sim purposes should be sufficient
+  price_ratio = 13
+
   ## NOTE: No extra decimals cause Python handles them
   deposited_eth = AMT_ETH
   print("deposited_eth", deposited_eth)
-  borrowed_btc = deposited_eth * AVG_LTV / MAX_BPS
+  borrowed_btc = (deposited_eth / price_ratio) * (AVG_LTV / MAX_BPS)
   print("borrowed_btc", borrowed_btc)
 
   max_liquidatable = borrowed_btc * LIQUIDATABLE_BPS / MAX_BPS
@@ -144,10 +148,6 @@ def sim(run, MAX_LTV, MAX_LP_BPS, LIQUIDATABLE_BPS, AT_RISK_LTV) -> SimResult:
 
   ## TODO: Check if correct or if it's just floating math
   # assert LIQUIDATABLE_BPS == max_liquidatable * MAX_BPS / borrowed_btc
-
-  ## Assume 13 ETH = 1 BTC to KIS
-  ## NOTE: Assume LP value is 1/1 which technically is naive, but for sim purposes should be sufficient
-  price_ratio = 13
 
   btc_in_amm = LP_BPS * borrowed_btc / MAX_BPS
   print("btc_in_amm", btc_in_amm)
