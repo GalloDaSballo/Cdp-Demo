@@ -73,6 +73,7 @@ def main():
   price_ratio = START_PRICE
 
   ## NOTE: No extra decimals cause Python handles them
+  DEBUG = False
 
   for liquidity in RANGE_LIQUIDITY:
     print("")
@@ -108,6 +109,17 @@ def main():
     print("You can liquidate at most", max_btc_liquidatable_sqrt)
     print("As portion of Total Supply BPS", max_btc_liquidatable_sqrt / BTC_BASE * MAX_BPS)
     print("As portion of Total Liquidity BPS", max_btc_liquidatable_sqrt / x * MAX_BPS)
+
+    if DEBUG:
+      print("")
+      print("")
+      print("DEBUG")
+      print("price_given_in(normal)", price_given_in(max_eth_before_insolvent, x, y))
+      print("price_given_in(sqrt)", price_given_in(max_eth_before_insolvent_sqrt, x, y))
+
+      print("")
+      print("")
+      print("")
 
 
     ### === WORST CASE SCENARIO === ###
