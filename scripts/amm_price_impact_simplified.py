@@ -233,36 +233,8 @@ def sim(run, MAX_LTV, MAX_LP_BPS, LIQUIDATABLE_BPS, AT_RISK_LTV) -> SimResult:
     
     return SimResult(is_solvent=False, log_entry=log_entry)
   
-RUNS = 10_000
-LOG = True
 
-def random_run():
-  counter = 0
-  exc = 0
-  insolvent = 0
 
-  logger = AmmPriceImpactLogger()
-
-  for i in range(RUNS):
-    try:
-      sim_result = sim(i)
-      if sim_result.is_solvent:
-        print("")
-        print("")
-        print("")
-        counter += 1
-      else:
-        insolvent += 1
-      logger.add_entry(sim_result.log_entry)
-    except:
-      print("Something went wrong")
-      exc += 1
-  
-  print("Can safely liquidate", counter, "out of ", RUNS)
-  print("Exceptions (not necessarily insolvent)", exc)
-  print("Logging to CSV")
-  if(LOG):
-    logger.to_csv()
 
 def main():
   counter = 0
@@ -273,7 +245,8 @@ def main():
   logger = AmmBruteForceLogger()
 
   ## Must be non-zero as 0 liquidty means a revert
-  RANGE_MAX_LP_BPS = reversed(range(100, 10_000, 100))
+  ## Up to 50%
+  RANGE_MAX_LP_BPS = reversed(range(100, MAX_BPS / 2, 100))
   
   max_ltv = SETTING_MAX_LTV
 
@@ -290,7 +263,8 @@ def main():
 
 
   for max_lp_bps in RANGE_MAX_LP_BPS:
-    RANGE_LIQUIDATABLE_BPS = (range(0, MAX_BPS, 100))
+    ## 1% Liquidatable BPS
+    RANGE_LIQUIDATABLE_BPS = (range(0, MAX_BPS / 2, 100))
     for at_risk_ltv in  AT_RISK_LTV_RANGE:
       for liquidatable_bps in RANGE_LIQUIDATABLE_BPS:
         runs += 1

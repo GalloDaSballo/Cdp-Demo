@@ -45,8 +45,13 @@ def max_in_before_price_limit(price_limit, reserve_in, reserve_out):
 def max_liquidatable(reserve_in, reserve_out, liquidation_premium_bps, ltv_bps, price_token_in):
   return reserve_out - (1 + liquidation_premium_bps / MAX_BPS) *  reserve_in * ltv_bps / MAX_BPS * price_token_in
 
+## In token_out
 def max_buyable_given_liquidatable(reserve_in, reserve_out, liquidation_premium_bps, ltv_bps, price_token_in):
-  return (reserve_out) / ((1 + liquidation_premium_bps / MAX_BPS) * ltv_bps / MAX_BPS * price_token_in) - reserve_in
+  return reserve_out / ((1 + liquidation_premium_bps / MAX_BPS) * ltv_bps / MAX_BPS * price_token_in) - reserve_in
+
+def max_alternative_amount_qe(reserve_in, reserve_out, liquidation_premium_bps, ltv_bps, price_token_in):
+  return reserve_out * ((1 + liquidation_premium_bps) / price_token_in) - reserve_in
+
 
 def profit_from_liquidation(reserve_in, reserve_out, ltv_bps, price_token_in, debt_to_liquidate):
   return (reserve_out - debt_to_liquidate) / (ltv_bps / MAX_BPS * price_token_in * reserve_in) - 1
