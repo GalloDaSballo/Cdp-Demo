@@ -3,6 +3,7 @@ from random import random
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+from math import sqrt
 
 from scripts.loggers.amm_price_impact_logger import AmmPriceImpactLogger, AmmPriceImpactEntry, AmmBruteForceLogger, AMMBruteForceEntry
 
@@ -37,6 +38,9 @@ def amount_in_give_out(amount_out, reserve_in, reserve_out):
 
 def max_in_before_price_limit(price_limit, reserve_in, reserve_out):
   return reserve_out * price_limit - reserve_in
+
+def max_in_before_price_limit_sqrt(price_limit, reserve_in, reserve_out):
+  return sqrt(reserve_out * reserve_in * price_limit) - reserve_in
 
 
 
@@ -90,11 +94,19 @@ def main():
     print("max_price", max_price)
 
     max_eth_before_insolvent = max_in_before_price_limit(max_price, x, y)
+    max_eth_before_insolvent_sqrt = max_in_before_price_limit_sqrt(max_price, x, y)
     max_btc_liquidatable = amount_out_given_in(max_eth_before_insolvent, x, y)
+    max_btc_liquidatable_sqrt = amount_out_given_in(max_eth_before_insolvent_sqrt, x, y)
 
     print("You can liquidate at most", max_btc_liquidatable)
     print("As portion of Total Supply BPS", max_btc_liquidatable / BTC_BASE * MAX_BPS)
     print("As portion of Total Liquidity BPS", max_btc_liquidatable / x * MAX_BPS)
+
+    print("")
+    print("SQRT FORMULA")
+    print("You can liquidate at most", max_btc_liquidatable_sqrt)
+    print("As portion of Total Supply BPS", max_btc_liquidatable_sqrt / BTC_BASE * MAX_BPS)
+    print("As portion of Total Liquidity BPS", max_btc_liquidatable_sqrt / x * MAX_BPS)
 
 
     ### === WORST CASE SCENARIO === ###
@@ -104,12 +116,20 @@ def main():
     print("min_price", min_price)
     
     min_max_eth_before_insolvent = max_in_before_price_limit(min_price, x, y)
+    min_max_eth_before_insolvent_sqrt = max_in_before_price_limit_sqrt(min_price, x, y)
     min_max_btc_liquidatable = amount_out_given_in(min_max_eth_before_insolvent, x, y)
+    min_max_btc_liquidatable_sqrt = amount_out_given_in(min_max_eth_before_insolvent_sqrt, x, y)
 
 
     print("You can liquidate at worst", min_max_btc_liquidatable)
     print("As portion of Total Supply BPS", min_max_btc_liquidatable / BTC_BASE * MAX_BPS)
     print("As portion of Total Liquidity BPS", min_max_btc_liquidatable / x * MAX_BPS)
+
+    print("")
+    print("SQRT FORMULA")
+    print("You can liquidate at worst", min_max_btc_liquidatable_sqrt)
+    print("As portion of Total Supply BPS", min_max_btc_liquidatable_sqrt / BTC_BASE * MAX_BPS)
+    print("As portion of Total Liquidity BPS", min_max_btc_liquidatable_sqrt / x * MAX_BPS)
 
 
   
