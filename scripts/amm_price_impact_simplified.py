@@ -70,8 +70,15 @@ def main():
 
   for liquidity in RANGE_LIQUIDITY:
     for premium in PROFITABILITY_RANGE:
+      print("")
+      print("")
+      print("")
+
       x = BTC_BASE * liquidity / MAX_BPS
       y = x * price_ratio ## 13 times more ETH than BTC
+
+      print("Given liquidity BPS", liquidity)
+      print("Given premium BPS", premium)
 
       spot_price = price_given_in(1, x, y)
       print("spot_price", spot_price)
