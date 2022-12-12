@@ -73,7 +73,7 @@ def main():
 
   USDC_BASE = CRV_BASE * AVG_LTV / MAX_BPS
 
-  price_ratio = .61
+  price_ratio = .40
 
   ## NOTE: No extra decimals cause Python handles them
   DEBUG = False
