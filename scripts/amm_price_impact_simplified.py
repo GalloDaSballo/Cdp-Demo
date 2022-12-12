@@ -11,13 +11,8 @@ sns.set_style('whitegrid')
 plt.rcParams['figure.figsize'] = 15, 30
 
 """
-  Sim of Price Impact of an AMM
-  To simulate Availability of Profitable Liquidations based on AMM Liquidity.
-  We assume ETH -> eBTC -> ETH Pure Arb to be the only way to liquidate
-
-  TODO: Find relations with this chart
-  https://www.desmos.com/calculator/jfctve72w9
-  
+  Basic sim, that given a target LTV shows the maximum amounts liquidatable
+  Is cognizant of price impact on UniV2 Like AMM
 """
 
 def price_given_in(amount_in, reserve_in, reserve_out):
@@ -83,7 +78,7 @@ def main():
     x = BTC_BASE * liquidity / MAX_BPS
     y = x * price_ratio ## 13 times more ETH than BTC
 
-    print("Given liquidity BPS", liquidity)
+    print("### === CASE LIQUIDITY BPS === ###", liquidity)
     print("Given premium BPS betweem", MIN_PROFIT, MAX_PROFIT)
 
     spot_price = price_given_in(1, x, y)
