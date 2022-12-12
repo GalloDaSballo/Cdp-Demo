@@ -57,6 +57,7 @@ AMT_ETH = 1000e18
 MIN_PROFIT = 70
 MAX_PROFIT = MAX_BPS - LTV
 
+
 def main():
   ## From 50% to 1%
   RANGE_LIQUIDITY = reversed(range(100, MAX_LIQUIDITY, 100))
@@ -69,7 +70,7 @@ def main():
 
   BTC_BASE = ETH_BASE * AVG_LTV / MAX_BPS
 
-  price_ratio = 13
+  price_ratio = START_PRICE
 
   ## NOTE: No extra decimals cause Python handles them
 

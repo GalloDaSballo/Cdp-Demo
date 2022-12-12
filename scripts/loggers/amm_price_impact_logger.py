@@ -133,6 +133,7 @@ class AmmPriceImpactLogger:
 
 
 
+## BRUTE FORCE ##
 
 class AMMBruteForceEntry(CsvEntry):
     def __init__(
@@ -164,6 +165,96 @@ class AmmBruteForceLogger:
         self.entries = []
         self.headers = [
             "run",
+            "max_ltv",
+            "max_lp_bps",
+            "liquidatable_bps",
+            "at_risk_ltv"
+        ]
+        os.makedirs(self.path, exist_ok=True)
+
+    def add_entry(self, entry: AmmPriceImpactEntry):
+        self.entries.append(entry)
+
+    def __repr__(self):
+        return str(self.__dict__)
+
+    def to_csv(self):
+        # Create a file with current time as name
+        filename = f'{self.path}/{pd.Timestamp.now()}.csv'
+
+        with open(filename, 'w', encoding='UTF8') as f:
+            writer = csv.writer(f)
+
+            # write the header
+            writer.writerow(self.headers)
+
+            # write the data
+            for entry in self.entries:
+                writer.writerow(entry.to_entry())
+
+    def plot_to_png(self):
+        filename=f'{self.path}/{pd.Timestamp.now()}.png'
+        # convert CsvEntry objects to a single DataFrame
+        df = (pd.DataFrame(self.entries)[0]
+              .astype(str)
+              .map(eval)
+              .apply(pd.Series)
+              .set_index('run')
+              )
+        print(df.info())
+        df.style.set_caption("Hello World")
+
+        # generate subplot for every column; save to single png
+        constants = ['max_ltv']
+        fig, axes = plt.subplots()
+        df.drop(constants, axis='columns').plot(
+            subplots=True, ax=axes,
+            # title=[
+            #     'Title1', 'Title2', 'Title3',
+            #     'Title1', 'Title2', 'Title3',
+            #     'Title1', 'Title2', 'Title3',
+            #     'Title1', 'Title2', 'Title3',
+            #     'Title1', 'Liquidations', "Is_Solvent (Bool)"
+            # ]
+        )
+        # fig.set_size_inches(10, 100)
+        title = f'liquidatable_collateral: {df["liquidatable_collateral"].max()}\nmax_price: {df["max_price"].max()}\n'
+        fig.tight_layout()
+        fig.suptitle(title, fontsize=14, fontweight='bold')
+        fig.savefig(filename, dpi=200)
+
+
+
+## SIMPLIFIED ##
+class AMMSimplifiedEntry(CsvEntry):
+    def __init__(
+        self,
+        run,
+        max_ltv, max_lp_bps, liquidatable_bps, at_risk_ltv
+    ):
+        self.run = run
+        self.max_ltv = max_ltv
+        self.max_lp_bps = max_lp_bps
+        self.liquidatable_bps = liquidatable_bps
+        self.at_risk_ltv = at_risk_ltv
+
+    def __repr__(self):
+        return str(self.__dict__)
+
+    def to_entry(self):
+        return [
+            self.run,
+            self.max_ltv,
+            self.max_lp_bps,
+            self.liquidatable_bps,
+            self.at_risk_ltv
+        ]
+
+class AMMSimplifiedLogger:
+    def __init__(self):
+        self.path = 'logs/amm_price_impact_sims/simplified/'
+        self.entries = []
+        self.headers = [
             "max_ltv",
             "max_lp_bps",
             "liquidatable_bps",
