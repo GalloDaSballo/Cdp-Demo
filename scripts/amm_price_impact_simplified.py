@@ -41,7 +41,7 @@ def max_in_before_price_limit_sqrt(price_limit, reserve_in, reserve_out):
 
 LTV = 8_500 ## 85%
 MAX_BPS = 10_000
-MAX_LIQUIDITY = 5_000 #50%
+MAX_LIQUIDITY = 9_500 #95%
 
 START_PRICE = 13 ## e.g. 13 eth to btc
 
@@ -54,9 +54,9 @@ MAX_PROFIT = MAX_BPS - LTV
 
 
 def main():
-  ## From 50% to 1%
-  RANGE_LIQUIDITY = reversed(range(100, MAX_LIQUIDITY, 100))
-  
+  ## From 5% to 95%
+  RANGE_LIQUIDITY = reversed(range(500, MAX_LIQUIDITY, 500))
+
   ## 1k ETH as base value
   ETH_BASE = 1000e18
 
