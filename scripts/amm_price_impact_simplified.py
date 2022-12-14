@@ -140,6 +140,29 @@ def main():
     print("As portion of Total Liquidity BPS", min_max_btc_liquidatable_sqrt / x * MAX_BPS)
 
 
+    ### === RECOVERY MODE === ###
+    print("")
+    print("### === RECOVERY MODE === ###")
+    RECOVERY_MODE_BUFFER = 5_000
+    max_price_recovery = spot_price * (MAX_BPS + MAX_PROFIT + RECOVERY_MODE_BUFFER) / MAX_BPS
+    print("max_price_recovery", max_price_recovery)
+
+    recovery_max_eth_before_insolvent = max_in_before_price_limit(max_price_recovery, x, y)
+    recovery_max_eth_before_insolvent_sqrt = max_in_before_price_limit_sqrt(max_price_recovery, x, y)
+    recovery_max_btc_liquidatable = amount_out_given_in(recovery_max_eth_before_insolvent, x, y)
+    recovery_max_btc_liquidatable_sqrt = amount_out_given_in(recovery_max_eth_before_insolvent_sqrt, x, y)
+
+    print("You can liquidate at most", recovery_max_btc_liquidatable)
+    print("As portion of Total Supply BPS", recovery_max_btc_liquidatable / BTC_BASE * MAX_BPS)
+    print("As portion of Total Liquidity BPS", recovery_max_btc_liquidatable / x * MAX_BPS)
+
+    print("")
+    print("SQRT FORMULA")
+    print("You can liquidate at most", recovery_max_btc_liquidatable_sqrt)
+    print("As portion of Total Supply BPS", recovery_max_btc_liquidatable_sqrt / BTC_BASE * MAX_BPS)
+    print("As portion of Total Liquidity BPS", recovery_max_btc_liquidatable_sqrt / x * MAX_BPS)
+
+
   
 
 if __name__ == '__main__':
