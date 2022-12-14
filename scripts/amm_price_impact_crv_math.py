@@ -66,10 +66,12 @@ def main():
   
   ## 1k ETH as base value
   ## 40 Million USD -> .85% -> $34 MLN in CRV
-  CRV_BASE = 54838710
+  ## 
+  CRV_BASE = 54_838_710
 
   ## We need this to start the sim, this value is necessary for relative math
-  AVG_LTV = random() * LTV
+  ## Changed to 100% because we want to sim the full liquidity
+  AVG_LTV = LTV
 
   USDC_BASE = CRV_BASE * AVG_LTV / MAX_BPS
 
