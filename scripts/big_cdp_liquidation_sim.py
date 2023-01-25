@@ -125,7 +125,8 @@ def main():
   ## TCR if profit is max, is basically in Recovery Mode
 
   ## Always the same
-  debt_after_liq = TOTAL_BTC_DEBT - liquidation_debt_amount
+  ## Debt doesn't change because you're liquidating a CDP but creating the same amount in another
+  debt_after_liq = TOTAL_BTC_DEBT
 
   ## TODO: 0% vs 20%
   ## Total - Sent to Liquidator + collateral used to create new cdp
