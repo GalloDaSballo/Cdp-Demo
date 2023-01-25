@@ -93,24 +93,52 @@ def main():
   liquidation_percent = random() * 5_000 + 5_000
   print("Assuming CDP Whale is", liquidation_percent, "percent of all debt")
 
-  liquidation_amount = TOTAL_BTC_DEBT * liquidation_percent / MAX_BPS
-  print("Puts the Debt to Liquidate at", liquidation_amount)
+  liquidation_debt_amount = TOTAL_BTC_DEBT * liquidation_percent / MAX_BPS
+  ## TODO: Maybe wrong, maybe valid for now as we have same ratios everywhere
+  ## Definitely wrong later as we have different % of debt
+  liquidation_collateral_amount = TOTAL_ETH_COLL * liquidation_percent / MAX_BPS
+  print("Puts the Debt to Liquidate at", liquidation_debt_amount)
+  print("Which allows redemption of", liquidation_collateral_amount, "Collateral")
+
+  ## TODO: TCR HIGHER
+  TCR_HIGHER = TOTAL_BTC_DEBT * price_ratio / (TOTAL_ETH_COLL)
+  print("TCR_HIGHER", TCR_HIGHER)
+
+  ## TCR LOWER ## TODO: Is this correct?
+  ## TODO: Whole math is off
+  ## Rest of CDPs should be all solvent
+  ## But the Big one should be insolvent, so this math is off
+  price_worst_case = (price_ratio * (MAX_BPS + MAX_BPS - LTV) / MAX_BPS)
+  TCR_LOWER = TOTAL_BTC_DEBT * price_worst_case / (TOTAL_ETH_COLL)
+  print("TCR_LOWER", TCR_LOWER)
 
   ## Sanity check, we are not inventing debt
-  assert liquidation_amount < TOTAL_BTC_DEBT
+  assert liquidation_debt_amount < TOTAL_BTC_DEBT
 
   ## TODO: How do we figure out liquidation logic?
 
-  collateral_for_liquidation = liquidation_amount * price_ratio / MINT_LTV * MAX_BPS
+  collateral_for_liquidation = liquidation_debt_amount * price_ratio / MINT_LTV * MAX_BPS
   print("To Liquidate, we need", collateral_for_liquidation)
 
   ## Compute new TCR
   ## TCR if profit is 0, is basically critical
   ## TCR if profit is max, is basically in Recovery Mode
 
+  ## Always the same
+  debt_after_liq = TOTAL_BTC_DEBT - liquidation_debt_amount
+
+  ## TODO: 0% vs 20%
+  ## Total - Sent to Liquidator + collateral used to create new cdp
+  collateral_after_liq = TOTAL_ETH_COLL - liquidation_collateral_amount + collateral_for_liquidation
+
   ## See new Liquidation threshold
   ## NOTE: Should be known as it's LTV - MINT_LTV
   ## SO it's trivial
+  TCR_HIGHER_AFTER_LIQ = debt_after_liq * price_ratio / (collateral_after_liq)
+  TCR_LOWER_AFTER_LIQ = debt_after_liq * price_worst_case / (collateral_after_liq)
+
+  print("TCR_HIGHER_AFTER_LIQ", TCR_HIGHER_AFTER_LIQ)
+  print("TCR_LOWER_AFTER_LIQ", TCR_LOWER_AFTER_LIQ)
   
 
 if __name__ == '__main__':
