@@ -1,5 +1,12 @@
 from random import random
 
+"""
+  Demonstrates the number of partial liquidations based on the minimum liquidatable size
+
+  NOTE: Ignores requirement for CR
+  NOTE: Also ignores if the depositor were to re-collateralize, which we can imagine would make this even more complex
+"""
+
 ## 1k eth
 MAX_VALUE = 1000e18
 
