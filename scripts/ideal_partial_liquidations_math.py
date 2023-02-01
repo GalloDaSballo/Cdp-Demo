@@ -135,6 +135,12 @@ def main():
 
   assert SYSTEM_CR_AFTER_LIQ > INITIAL_SYSTEM_CR
 
+  roi = collateral_received / (debt_to_repay * price_ratio) * 100
+  print("roi for total liq", roi)
+
+  profit = collateral_received - (debt_to_repay * price_ratio)
+  print("profit for total liq")
+
   ## Partial Liquidations
   ## TODO: Generalize into Range + Loops
 
