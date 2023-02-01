@@ -190,15 +190,16 @@ def main():
 
     SYSTEM_CR_AFTER_LIQ = system_coll_after_partial_liq / price_ratio / system_debt_after_partial_liq * 100
     print("SYSTEM_CR_AFTER_LIQ", SYSTEM_CR_AFTER_LIQ)
-    
+
     ## It relieved some risk
     assert SYSTEM_CR_AFTER_LIQ > INITIAL_SYSTEM_CR
 
-    ## PROFIT IS DELTA VALUE OF COLL IN COLL OUT
-    profit = collateral_received * price_ratio / debt_to_repay
-    
+    ## ROI and PROFIT
+    roi = collateral_received / (debt_to_repay * price_ratio) * 100
+    print("roi", roi)
 
-    ## ROI DELTA VALUE GIVEN %
+    profit = collateral_received - (debt_to_repay * price_ratio)
+    print("profit in ETH", profit)
 
 
   
