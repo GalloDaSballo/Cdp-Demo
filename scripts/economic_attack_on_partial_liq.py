@@ -50,7 +50,10 @@ def perform_partial_liq(total_coll, total_debt, price, repaid_debt):
     bonus_coll = repaid_debt * ICR / 100 / price
   
   new_coll = total_coll - bonus_coll
-  new_icr = price * new_coll / new_debt * 100
+  if(new_debt == 0):
+    new_icr = 999999999
+  else:
+    new_icr = price * new_coll / new_debt * 100
   return [
     new_coll,
     new_debt,
@@ -78,23 +81,40 @@ def main():
   initial_ICR = price_ratio * TOTAL_ETH_COLL / TOTAL_BTC_DEBT * 100
   print("CURRENT ICR", initial_ICR)
 
-  DEBT_REPAY = random() * TOTAL_BTC_DEBT
+  total_coll = TOTAL_ETH_COLL
+  total_debt = TOTAL_BTC_DEBT
+  DEBT_REPAY = random() * total_debt
 
-  print("Initial Collateral", TOTAL_ETH_COLL)
-  print("Initial_Debt", TOTAL_BTC_DEBT)
+  while DEBT_REPAY != 0:
 
-  print("DEBT_REPAY", DEBT_REPAY)
-  print("DEBT_REPAY as percent", DEBT_REPAY / TOTAL_BTC_DEBT * 100)
+    print("Initial Collateral", total_coll)
+    print("Initial_Debt", total_debt)
 
-  [new_coll, new_debt, bonus_coll, new_icr] = perform_partial_liq(TOTAL_ETH_COLL, TOTAL_BTC_DEBT, price_ratio, DEBT_REPAY)
+    print("DEBT_REPAY", DEBT_REPAY)
+    print("DEBT_REPAY as percent", DEBT_REPAY / total_coll * 100)
 
-  print("NEW ICR", new_icr)
-  print("new_coll", new_coll)
-  print("new_debt", new_debt)
-  print("bonus_coll", bonus_coll)
+    [new_coll, new_debt, bonus_coll, new_icr] = perform_partial_liq(total_coll, total_debt, price_ratio, DEBT_REPAY)
 
-  print("bonus_coll as percent", bonus_coll / TOTAL_ETH_COLL * 100)
-  print("new_coll as percent", new_coll / TOTAL_ETH_COLL * 100)
+    print("NEW ICR", new_icr)
+    print("new_coll", new_coll)
+    print("new_debt", new_debt)
+    print("bonus_coll", bonus_coll)
+
+    total_debt = new_debt
+    total_coll = new_coll
+
+    print("bonus_coll as percent", bonus_coll / total_coll * 100)
+    print("new_coll as percent", new_coll / total_coll * 100)
+
+    if (total_debt < 1e18):
+      DEBT_REPAY = total_debt
+    else:
+      DEBT_REPAY = random() * total_debt
+
+  assert total_debt == 0
+  assert total_coll > 0
+
+
 
 
 
