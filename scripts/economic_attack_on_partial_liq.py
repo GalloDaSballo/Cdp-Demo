@@ -1,14 +1,6 @@
 from random import random
 
 import matplotlib.pyplot as plt
-import pandas as pd
-import seaborn as sns
-from math import sqrt
-
-from scripts.loggers.amm_price_impact_logger import AmmPriceImpactLogger, AmmPriceImpactEntry, AmmBruteForceLogger, AMMBruteForceEntry
-
-sns.set_style('whitegrid')
-plt.rcParams['figure.figsize'] = 15, 30
 
 """
   Effectively prove that Partial Liq with min(105, ICR) will increase ICR
@@ -75,70 +67,79 @@ def main():
 
   ## Liquidatable TVL for our sim
   ## NOTE: Weird syntax cause we care about % in bps
-  LTV = 85_00
-  
-  price_ratio = START_PRICE
+  ## RANGE from 85 to 99.99
+  ## Price drop from 0 to 5% per tick
+  LTVS = range(85_00, 100_00, 100)
 
-  ## Divide by 13 as it's 13 ETH per BTC
-  TOTAL_BTC_DEBT = TOTAL_ETH_COLL / price_ratio * LTV / MAX_BPS
+  PRICE_DRAWDOWNS = range(100, 106, 1)
 
-  initial_ICR = price_ratio * TOTAL_ETH_COLL / TOTAL_BTC_DEBT * 100
-  print("CURRENT ICR", initial_ICR)
+  for ltv in LTVS:
+    for price_drawdown in PRICE_DRAWDOWNS:
 
-  total_coll = TOTAL_ETH_COLL
-  total_debt = TOTAL_BTC_DEBT
-  DEBT_REPAY = random() * total_debt
-  new_price = price_ratio
+      print("New Sim with LTV", ltv)
+      print("And Price Drawdown per Loop of", price_drawdown)
 
-  PRICE_DECREMENT = 1.05
+      price_ratio = START_PRICE
 
-  while DEBT_REPAY != 0:
+      ## Divide by 13 as it's 13 ETH per BTC
+      TOTAL_BTC_DEBT = TOTAL_ETH_COLL / price_ratio * ltv / MAX_BPS
 
-    ## Check to stop as we cannot liquidate
-    current_icr = get_icr(total_coll, total_debt, new_price)
-    if(current_icr > 120):
-      print("We cannot liquidate anymore")
-      break
+      initial_ICR = price_ratio * TOTAL_ETH_COLL / TOTAL_BTC_DEBT * 100
+      print("CURRENT ICR", initial_ICR)
 
-    print("Initial Collateral", total_coll)
-    print("Initial_Debt", total_debt)
-
-    print("DEBT_REPAY", DEBT_REPAY)
-    print("DEBT_REPAY as percent", DEBT_REPAY / total_coll * 100)
-    
-
-  
-    [new_coll, new_debt, bonus_coll, new_icr] = perform_partial_liq(total_coll, total_debt, new_price, DEBT_REPAY)
-
-    print("NEW ICR", new_icr)
-    print("new_coll", new_coll)
-    print("new_debt", new_debt)
-    print("bonus_coll", bonus_coll)
-    print("price", new_price)
-
-    print("bonus_coll as percent", bonus_coll / total_coll * 100)
-    print("new_coll as percent of old", new_coll / total_coll * 100)
-
-
-    liquidator_profit = bonus_coll * new_price / DEBT_REPAY
-    print("liquidator_profit", liquidator_profit)
-
-    ## Update for next iteration
-    total_debt = new_debt
-    total_coll = new_coll
-
-    if (total_debt < 1e18):
-      DEBT_REPAY = total_debt
-    else:
+      total_coll = TOTAL_ETH_COLL
+      total_debt = TOTAL_BTC_DEBT
       DEBT_REPAY = random() * total_debt
-      ## HUNCH: Debt Repay to permanently leave ICR at current value but extract the bonus
-      ## Can we achieve this?
+      new_price = price_ratio
+
+      while DEBT_REPAY != 0:
+
+        ## Check to stop as we cannot liquidate
+        current_icr = get_icr(total_coll, total_debt, new_price)
+        if(current_icr > 120):
+          print("We cannot liquidate anymore")
+          break
+
+        print("Initial Collateral", total_coll)
+        print("Initial_Debt", total_debt)
+
+        print("DEBT_REPAY", DEBT_REPAY)
+        print("DEBT_REPAY as percent", DEBT_REPAY / total_coll * 100)
+        
+
+      
+        [new_coll, new_debt, bonus_coll, new_icr] = perform_partial_liq(total_coll, total_debt, new_price, DEBT_REPAY)
+
+        print("NEW ICR", new_icr)
+        print("new_coll", new_coll)
+        print("new_debt", new_debt)
+        print("bonus_coll", bonus_coll)
+        print("price", new_price)
+
+        print("bonus_coll as percent", bonus_coll / total_coll * 100)
+        print("new_coll as percent of old", new_coll / total_coll * 100)
 
 
-    ## Last thing: Update price to assume downward spiral
-    # temp_new_price = new_price / PRICE_DECREMENT
-    # if(get_icr(total_coll, total_debt, temp_new_price) > 100):
-    #   new_price = temp_new_price
+        liquidator_profit = bonus_coll * new_price / DEBT_REPAY
+        print("liquidator_profit", liquidator_profit)
+
+        ## Update for next iteration
+        total_debt = new_debt
+        total_coll = new_coll
+
+        if (total_debt < 1e18):
+          DEBT_REPAY = total_debt
+        else:
+          DEBT_REPAY = random() * total_debt
+          ## HUNCH: Debt Repay to permanently leave ICR at current value but extract the bonus
+          ## Can we achieve this?
+
+
+        # Last thing: Update price to assume downward spiral
+        ## NOTE: Drawdown in 100s
+        temp_new_price = new_price / price_drawdown * 100
+        if(total_debt > 0 and get_icr(total_coll, total_debt, temp_new_price) > 100):
+          new_price = temp_new_price
 
 
 
