@@ -96,13 +96,15 @@ def simulate_direct_absorption(start_coll, start_debt, coll_to_distribute, debt_
   ## Because it's underwater, we know it will drag the CR down
   assert NEW_CR < GCR
 
+  return NEW_CR
+
 
 ## 10% premium
 LIQ_PREMIUM = 500
 
-def simulate_direct_absorption_with_fixed_premium(start_coll, start_debt, coll_to_distribute, debt_to_distribute):
+def simulate_direct_absorption_with_fixed_premium(start_coll, start_debt, coll_to_distribute, debt_to_distribute, liq_premium):
   underwater_coll_after_premium = 0 ## We sell all
-  underwater_debt_removed = debt_to_distribute * MAX_BPS / (MAX_BPS + LIQ_PREMIUM)
+  underwater_debt_removed = debt_to_distribute * MAX_BPS / (MAX_BPS + liq_premium)
   underwater_debt_after_premium = debt_to_distribute - underwater_debt_removed
 
   print("underwater_debt_after_premium", underwater_debt_after_premium)
@@ -113,20 +115,40 @@ def simulate_direct_absorption_with_fixed_premium(start_coll, start_debt, coll_t
   NEW_CR = get_icr(new_coll, new_debt, PRICE)
   print("NEW_CR_WITH_ABSORPTION", NEW_CR)
 
+  return NEW_CR
+
 
 ## TODO: What do?
 LTV = 7_500
 MAX_BPS = 10_000
-
 PERCENT_INSOLVENT = 1_000 ## 10%
+"""
+  Invariants / X values
+  - Price
+  - LTV
+
+
+  Variables
+  - LIQ_PREMIUM -> Smaller = Better CR after (but more risk of unprofitable operation for liquidator)
+  - Percent Insolvent - (This may be a linear var, so not too interesting)
+  - Range for How Deeply Insolvent
+"""
 
 def main():
+  PERCENTS_INSOLVENT = range(100, 11_00, 100)
+  PREMIUMS = range(0, 1100, 100)
+  for insolvent_percent in PERCENTS_INSOLVENT:
+    for premium in PREMIUMS:
+      [gcr_base, gcr_premium] = iteration(insolvent_percent, premium)
+      assert gcr_base <= gcr_premium
+
+def iteration(percent_insolvent, liq_premium):
   ## 1k ETH as base value
   TOTAL_ETH_COLL = 1000e18
   TOTAL_BTC_DEBT = TOTAL_ETH_COLL * PRICE * LTV / MAX_BPS
 
   ## Insolvency values
-  coll_to_liquidate = TOTAL_ETH_COLL * PERCENT_INSOLVENT / MAX_BPS
+  coll_to_liquidate = TOTAL_ETH_COLL * percent_insolvent / MAX_BPS
   print("coll_to_liquidate", coll_to_liquidate)
   print(coll_to_liquidate * PRICE)
 
@@ -135,5 +157,7 @@ def main():
   debt_to_liquidate = coll_to_liquidate / PRICE
   print("debt_to_liquidate", debt_to_liquidate)
 
-  simulate_direct_absorption(TOTAL_ETH_COLL, TOTAL_BTC_DEBT, coll_to_liquidate, debt_to_liquidate)
-  simulate_direct_absorption_with_fixed_premium(TOTAL_ETH_COLL, TOTAL_BTC_DEBT, coll_to_liquidate, debt_to_liquidate)
+  gcr_after_direct = simulate_direct_absorption(TOTAL_ETH_COLL, TOTAL_BTC_DEBT, coll_to_liquidate, debt_to_liquidate)
+  gcr_after_premium_direct = simulate_direct_absorption_with_fixed_premium(TOTAL_ETH_COLL, TOTAL_BTC_DEBT, coll_to_liquidate, debt_to_liquidate, liq_premium)
+
+  return [gcr_after_direct, gcr_after_premium_direct]
