@@ -86,7 +86,7 @@ def simulate_direct_absorption(start_coll, start_debt, coll_to_distribute, debt_
 
   ## Current CR
   GCR = get_icr(start_coll, start_debt, PRICE)
-  print("GCR", GCR)
+
 
   ## New CR
   new_coll = start_coll + coll_to_distribute
@@ -137,16 +137,16 @@ PERCENT_INSOLVENT = 1_000 ## 10%
 
 def main():
   PERCENTS_INSOLVENT = range(100, 11_00, 100)
-  PREMIUMS = range(0, 1100, 100)
+  PREMIUMS = range(100, 1100, 100)
 
-  logger = GenericLogger("cascade", ["With no partial", "With partial"])
+  logger = GenericLogger("cascade", ["gcr_start" ,"With no partial", "With partial", "% Insolvent", "Liq Premium"])
 
   for insolvent_percent in PERCENTS_INSOLVENT:
     for premium in PREMIUMS:
-      [gcr_base, gcr_premium] = iteration(insolvent_percent, premium)
+      [gcr_start, gcr_base, gcr_premium] = iteration(insolvent_percent, premium)
       assert gcr_base <= gcr_premium
 
-      entry = GenericEntry([gcr_base, gcr_premium])
+      entry = GenericEntry([gcr_start, gcr_base, gcr_premium, insolvent_percent, premium])
       logger.add_entry(entry)
   
   logger.to_csv()
@@ -168,7 +168,11 @@ def iteration(percent_insolvent, liq_premium):
   debt_to_liquidate = coll_to_liquidate / PRICE
   print("debt_to_liquidate", debt_to_liquidate)
 
+  ## Current CR
+  gcr_start = get_icr(TOTAL_ETH_COLL, TOTAL_BTC_DEBT, PRICE)
+  print("gcr_start", gcr_start)
+
   gcr_after_direct = simulate_direct_absorption(TOTAL_ETH_COLL, TOTAL_BTC_DEBT, coll_to_liquidate, debt_to_liquidate)
   gcr_after_premium_direct = simulate_direct_absorption_with_fixed_premium(TOTAL_ETH_COLL, TOTAL_BTC_DEBT, coll_to_liquidate, debt_to_liquidate, liq_premium)
 
-  return [gcr_after_direct, gcr_after_premium_direct]
+  return [gcr_start, gcr_after_direct, gcr_after_premium_direct]
