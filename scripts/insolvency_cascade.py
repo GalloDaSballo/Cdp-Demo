@@ -1,4 +1,5 @@
 from random import random
+from scripts.logger import (GenericEntry, GenericLogger)
 
 """
   Simulation around insolvency and risks involved with it
@@ -137,10 +138,20 @@ PERCENT_INSOLVENT = 1_000 ## 10%
 def main():
   PERCENTS_INSOLVENT = range(100, 11_00, 100)
   PREMIUMS = range(0, 1100, 100)
+
+  logger = GenericLogger("cascade", ["With no partial", "With partial"])
+
   for insolvent_percent in PERCENTS_INSOLVENT:
     for premium in PREMIUMS:
       [gcr_base, gcr_premium] = iteration(insolvent_percent, premium)
       assert gcr_base <= gcr_premium
+
+      entry = GenericEntry([gcr_base, gcr_premium])
+      logger.add_entry(entry)
+  
+  logger.to_csv()
+  
+
 
 def iteration(percent_insolvent, liq_premium):
   ## 1k ETH as base value
