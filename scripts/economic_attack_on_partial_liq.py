@@ -21,7 +21,7 @@ MAX_LIQUIDITY = 9_500 #95%
 MIN_ICR = 1 / 8_500 * MAX_BPS * 100
 
 ## TODO: Change back to 13
-START_PRICE = 1 ## e.g. 13 eth to btc
+START_PRICE = 13 ## e.g. 13 eth to btc
 
 
 AMT_ETH = 1000e18
@@ -55,7 +55,7 @@ def perform_partial_liq(total_coll, total_debt, price, repaid_debt):
 
 
 def get_icr(coll, debt, price):
-  return price * coll / debt * 100
+  return coll / debt / price * 100
 
 def main():
   
@@ -84,7 +84,7 @@ def main():
       ## Divide by 13 as it's 13 ETH per BTC
       TOTAL_BTC_DEBT = TOTAL_ETH_COLL / price_ratio * ltv / MAX_BPS
 
-      initial_ICR = price_ratio * TOTAL_ETH_COLL / TOTAL_BTC_DEBT * 100
+      initial_ICR = get_icr(TOTAL_ETH_COLL, TOTAL_BTC_DEBT, price_ratio)
       print("CURRENT ICR", initial_ICR)
 
       total_coll = TOTAL_ETH_COLL
